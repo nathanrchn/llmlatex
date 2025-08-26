@@ -14,9 +14,19 @@ class Node(ABC):
 @dataclass
 class TextNode(Node):
     content: str
+    subscript: Optional[Node] = None
+    superscript: Optional[Node] = None
 
     def to_text(self) -> str:
-        return self.content
+        output = self.content
+        
+        if self.subscript:
+            output += f"_{{{self.subscript.to_text()}}}"
+
+        if self.superscript:
+            output += f"^{{{self.superscript.to_text()}}}"
+
+        return output
 
 
 @dataclass
@@ -24,6 +34,8 @@ class MacroNode(Node):
     name: str
     arguments: Optional[List[Node]] = None
     optional_arguments: Optional[List[str]] = None
+    subscript: Optional[Node] = None
+    superscript: Optional[Node] = None
 
     def to_text(self) -> str:
         output = f"\\{self.name}"
@@ -35,6 +47,12 @@ class MacroNode(Node):
         if self.arguments:
             for arg in self.arguments:
                 output += f"{{{arg.to_text()}}}"
+
+        if self.subscript:
+            output += f"_{{{self.subscript.to_text()}}}"
+
+        if self.superscript:
+            output += f"^{{{self.superscript.to_text()}}}"
 
         return output
 

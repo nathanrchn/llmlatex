@@ -6,6 +6,8 @@ from typing import List, Tuple, Optional
 from nodes import Node, TextNode, MacroNode, MultiNode
 
 MACRO_PATTERN = r"\\([a-zA-Z]+)(?:\s*\[[^\]]*\]|\s*\{(?:[^{}]|\{[^{}]*\})*\})*"
+SUBSCRIPT_PATTERN = r"_\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
+SUPERSCRIPT_PATTERN = r"\^\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
 MATH_INLINE_PATTERN = r"\$([^$]+)\$"
 MATH_DISPLAY_PATTERN = r"\\?\[([^\]]+)\\?\]"
 MATH_DOUBLE_DOLLAR_PATTERN = r"\$\$([^$]+)\$\$"
@@ -28,23 +30,107 @@ class Parser:
             if next_match is None:
                 remaining_text = text[position:]
                 if remaining_text:
-                    nodes.append(TextNode(remaining_text))
+                    text_node, new_pos = self._parse_text_with_scripts(remaining_text, position, text)
+                    nodes.append(text_node)
                 break
 
             match_start = position + next_match.start()
             if match_start > position:
                 text_content = text[position:match_start]
                 if text_content:
-                    nodes.append(TextNode(text_content))
+                    text_node = TextNode(text_content)
+                    # Check for scripts immediately after this text content
+                    updated_node, new_pos = self._parse_scripts(text_node, text, match_start)
+                    nodes.append(updated_node)
+                    if new_pos > match_start:
+                        # Scripts were found and consumed, adjust the position
+                        position = new_pos
+                        continue
 
             if match_type == "macro":
                 node = self._parse_macro(next_match)
                 if node:
-                    nodes.append(node)
+                    # Check for subscripts and superscripts after the macro
+                    new_position = position + next_match.end()
+                    updated_node, new_position = self._parse_scripts(node, text, new_position)
+                    nodes.append(updated_node)
+                    position = new_position
+                    continue
+            elif match_type == "subscript":
+                # This is a standalone subscript, we need to attach it to the previous node
+                if nodes:
+                    prev_node = nodes.pop()  # Remove the last node
+                    subscript_content = next_match.group(1)
+                    subscript_nodes = self.parse(subscript_content)
+                    if len(subscript_nodes) == 1:
+                        subscript_node = subscript_nodes[0]
+                    elif len(subscript_nodes) > 1:
+                        subscript_node = MultiNode(content=subscript_nodes)
+                    else:
+                        subscript_node = TextNode("")
+                    
+                    # Add subscript to previous node
+                    if isinstance(prev_node, (MacroNode, TextNode)):
+                        if isinstance(prev_node, MacroNode):
+                            updated_node = MacroNode(
+                                name=prev_node.name,
+                                arguments=prev_node.arguments,
+                                optional_arguments=prev_node.optional_arguments,
+                                subscript=subscript_node,
+                                superscript=prev_node.superscript
+                            )
+                        else:  # TextNode
+                            updated_node = TextNode(
+                                content=prev_node.content,
+                                subscript=subscript_node,
+                                superscript=prev_node.superscript
+                            )
+                        nodes.append(updated_node)
+                    else:
+                        # Can't attach to this node type, put it back and continue
+                        nodes.append(prev_node)
+            elif match_type == "superscript":
+                # This is a standalone superscript, we need to attach it to the previous node
+                if nodes:
+                    prev_node = nodes.pop()  # Remove the last node
+                    superscript_content = next_match.group(1)
+                    superscript_nodes = self.parse(superscript_content)
+                    if len(superscript_nodes) == 1:
+                        superscript_node = superscript_nodes[0]
+                    elif len(superscript_nodes) > 1:
+                        superscript_node = MultiNode(content=superscript_nodes)
+                    else:
+                        superscript_node = TextNode("")
+                    
+                    # Add superscript to previous node
+                    if isinstance(prev_node, (MacroNode, TextNode)):
+                        if isinstance(prev_node, MacroNode):
+                            updated_node = MacroNode(
+                                name=prev_node.name,
+                                arguments=prev_node.arguments,
+                                optional_arguments=prev_node.optional_arguments,
+                                subscript=prev_node.subscript,
+                                superscript=superscript_node
+                            )
+                        else:  # TextNode
+                            updated_node = TextNode(
+                                content=prev_node.content,
+                                subscript=prev_node.subscript,
+                                superscript=superscript_node
+                            )
+                        nodes.append(updated_node)
+                    else:
+                        # Can't attach to this node type, put it back and continue
+                        nodes.append(prev_node)
             elif match_type in ["math_inline", "math_display", "math_double_dollar"]:
                 node = self._parse_multi_node(next_match)
                 if node:
-                    nodes.append(node)
+                    # Check for subscripts and superscripts after math blocks too
+                    new_position = position + next_match.end()
+                    updated_node, new_position = self._parse_scripts(node, text, new_position)
+                    nodes.append(updated_node)
+                    position = new_position
+                    continue
 
             position = position + next_match.end()
 
@@ -59,6 +145,15 @@ class Parser:
         macro_match = re.search(MACRO_PATTERN, search_text)
         if macro_match:
             matches.append((start_pos + macro_match.start(), macro_match, "macro"))
+
+        # Look for subscripts and superscripts (these should have higher priority than individual macros)
+        subscript_match = re.search(SUBSCRIPT_PATTERN, search_text)
+        if subscript_match:
+            matches.append((start_pos + subscript_match.start(), subscript_match, "subscript"))
+
+        superscript_match = re.search(SUPERSCRIPT_PATTERN, search_text)
+        if superscript_match:
+            matches.append((start_pos + superscript_match.start(), superscript_match, "superscript"))
 
         math_inline_match = re.search(MATH_INLINE_PATTERN, search_text)
         if math_inline_match:
@@ -152,6 +247,116 @@ class Parser:
 
         return arguments
 
+    def _parse_text_with_scripts(self, text_content: str, start_pos: int, full_text: str) -> Tuple[TextNode, int]:
+        """Parse text content and check for scripts that might follow."""
+        # For the remaining text case, we need to check if any part of it has scripts
+        # Look for the first occurrence of a script pattern
+        script_pos = len(text_content)
+        
+        # Find the earliest script in the text content
+        for pattern in [SUBSCRIPT_PATTERN, SUPERSCRIPT_PATTERN]:
+            match = re.search(pattern, text_content)
+            if match:
+                script_pos = min(script_pos, match.start())
+        
+        if script_pos < len(text_content):
+            # Found a script, split the text
+            pure_text = text_content[:script_pos]
+            text_node = TextNode(pure_text)
+            
+            # Parse scripts starting from the script position
+            updated_node, new_pos = self._parse_scripts(text_node, full_text, start_pos + script_pos)
+            return updated_node, new_pos
+        else:
+            # No scripts found, return simple text node
+            return TextNode(text_content), start_pos + len(text_content)
+
+    def _parse_scripts(self, node: Node, text: str, position: int) -> Tuple[Node, int]:
+        """Parse subscripts and superscripts that may follow a node."""
+        current_pos = position
+        updated_node = node
+        
+        # Keep looking for scripts until we don't find any more
+        while current_pos < len(text):
+            remaining_text = text[current_pos:]
+            
+            # Check for subscript
+            subscript_match = re.match(SUBSCRIPT_PATTERN, remaining_text)
+            if subscript_match:
+                subscript_content = subscript_match.group(1)
+                if subscript_content:
+                    # Parse the subscript content
+                    subscript_nodes = self.parse(subscript_content)
+                    if len(subscript_nodes) == 1:
+                        subscript_node = subscript_nodes[0]
+                    elif len(subscript_nodes) > 1:
+                        subscript_node = MultiNode(content=subscript_nodes)
+                    else:
+                        subscript_node = TextNode("")
+                    
+                    # Create new node with subscript based on type
+                    if isinstance(updated_node, MacroNode):
+                        updated_node = MacroNode(
+                            name=updated_node.name,
+                            arguments=updated_node.arguments,
+                            optional_arguments=updated_node.optional_arguments,
+                            subscript=subscript_node,
+                            superscript=updated_node.superscript
+                        )
+                    elif isinstance(updated_node, TextNode):
+                        updated_node = TextNode(
+                            content=updated_node.content,
+                            subscript=subscript_node,
+                            superscript=updated_node.superscript
+                        )
+                    # For other node types, we can't add scripts directly
+                    else:
+                        break
+                    
+                    current_pos += subscript_match.end()
+                    continue
+            
+            # Check for superscript
+            superscript_match = re.match(SUPERSCRIPT_PATTERN, remaining_text)
+            if superscript_match:
+                superscript_content = superscript_match.group(1)
+                if superscript_content:
+                    # Parse the superscript content
+                    superscript_nodes = self.parse(superscript_content)
+                    if len(superscript_nodes) == 1:
+                        superscript_node = superscript_nodes[0]
+                    elif len(superscript_nodes) > 1:
+                        superscript_node = MultiNode(content=superscript_nodes)
+                    else:
+                        superscript_node = TextNode("")
+                    
+                    # Create new node with superscript based on type
+                    if isinstance(updated_node, MacroNode):
+                        updated_node = MacroNode(
+                            name=updated_node.name,
+                            arguments=updated_node.arguments,
+                            optional_arguments=updated_node.optional_arguments,
+                            subscript=updated_node.subscript,
+                            superscript=superscript_node
+                        )
+                    elif isinstance(updated_node, TextNode):
+                        updated_node = TextNode(
+                            content=updated_node.content,
+                            subscript=updated_node.subscript,
+                            superscript=superscript_node
+                        )
+                    # For other node types, we can't add scripts directly
+                    else:
+                        break
+                    
+                    current_pos += superscript_match.end()
+                    continue
+            
+            # No more scripts found
+            break
+        
+        return updated_node, current_pos
+
     def _parse_multi_node(self, match: re.Match) -> Optional[MultiNode]:
         groups = match.groups()
         if not groups or not groups[0]:
@@ -168,4 +373,5 @@ class Parser:
 
 if __name__ == "__main__":
     parser = Parser()
-    print(parser.parse(r"t_{1/2} = \frac{1}{k[A]_0}"))
+    print(parser.parse(r"\int_{-\infty}^{\infty} \frac{e^{-x^2/2}}{\sqrt{2\pi}} dx"))
+    print(parser.parse(r"t_{\sqrt{2\pi} + 1/3}"))
