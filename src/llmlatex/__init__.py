@@ -6,11 +6,11 @@ __version__ = "0.1.0"
 
 __all__ = [
     "Parser",
-    "enumerate_macros", 
+    "enumerate_macros",
     "Formatter",
     "DEFAULT_FORMATTERS",
     "Node",
-    "TextNode", 
+    "TextNode",
     "MacroNode",
     "MultiNode",
 ]

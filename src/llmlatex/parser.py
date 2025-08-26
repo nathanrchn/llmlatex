@@ -393,39 +393,39 @@ class Parser:
 
 def _collect_macro_names(node: Node) -> set[str]:
     macro_names = set()
-    
+
     if isinstance(node, MacroNode):
         macro_names.add(node.name)
-        
+
         if node.arguments:
             for arg_node in node.arguments:
                 macro_names.update(_collect_macro_names(arg_node))
-        
+
         if node.subscript:
             macro_names.update(_collect_macro_names(node.subscript))
-            
+
         if node.superscript:
             macro_names.update(_collect_macro_names(node.superscript))
-            
+
     elif isinstance(node, MultiNode):
         for content_node in node.content:
             macro_names.update(_collect_macro_names(content_node))
-            
+
     elif isinstance(node, TextNode):
         if node.subscript:
             macro_names.update(_collect_macro_names(node.subscript))
-            
+
         if node.superscript:
             macro_names.update(_collect_macro_names(node.superscript))
-    
+
     return macro_names
 
 
 def enumerate_macros(text: str) -> List[str]:
     nodes = Parser().parse(text)
-    
+
     all_macro_names = set()
     for node in nodes:
         all_macro_names.update(_collect_macro_names(node))
-    
+
     return list(all_macro_names)
