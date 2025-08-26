@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llmlatex"
+version = "0.1.0"
+description = "A simple Python library for parsing LLM-generated text containing LaTeX"
+readme = "README.md"
+authors = [
+    {name = "Nathan Ranchin"}
+]
+classifiers = []
+requires-python = ">=3.8"
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/nathanranchin/llmlatex"
+Repository = "https://github.com/nathanranchin/llmlatex"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
