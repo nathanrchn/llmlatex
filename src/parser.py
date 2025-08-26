@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import List, Tuple, Optional
 
-from nodes import Node, TextNode, MacroNode, MultiNode
+from .nodes import Node, TextNode, MacroNode, MultiNode
 
 MACRO_PATTERN = r"\\([a-zA-Z]+)(?:\s*\[[^\]]*\]|\s*\{(?:[^{}]|\{[^{}]*\})*\})*"
 SUBSCRIPT_PATTERN = r"_\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
@@ -391,6 +391,41 @@ class Parser:
         return MultiNode(content=content_nodes)
 
 
-if __name__ == "__main__":
-    parser = Parser()
-    print(parser.parse(r"\pi r^2"))
+def _collect_macro_names(node: Node) -> set[str]:
+    macro_names = set()
+    
+    if isinstance(node, MacroNode):
+        macro_names.add(node.name)
+        
+        if node.arguments:
+            for arg_node in node.arguments:
+                macro_names.update(_collect_macro_names(arg_node))
+        
+        if node.subscript:
+            macro_names.update(_collect_macro_names(node.subscript))
+            
+        if node.superscript:
+            macro_names.update(_collect_macro_names(node.superscript))
+            
+    elif isinstance(node, MultiNode):
+        for content_node in node.content:
+            macro_names.update(_collect_macro_names(content_node))
+            
+    elif isinstance(node, TextNode):
+        if node.subscript:
+            macro_names.update(_collect_macro_names(node.subscript))
+            
+        if node.superscript:
+            macro_names.update(_collect_macro_names(node.superscript))
+    
+    return macro_names
+
+
+def enumerate_macros(text: str) -> List[str]:
+    nodes = Parser().parse(text)
+    
+    all_macro_names = set()
+    for node in nodes:
+        all_macro_names.update(_collect_macro_names(node))
+    
+    return list(all_macro_names)
