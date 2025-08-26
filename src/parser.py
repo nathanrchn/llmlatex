@@ -168,4 +168,4 @@ class Parser:
 
 if __name__ == "__main__":
     parser = Parser()
-    print(parser.parse(r"\textbf{Bold} \textit{Italic}"))
+    print(parser.parse(r"t_{1/2} = \frac{1}{k[A]_0}"))
