@@ -373,5 +373,4 @@ class Parser:
 
 if __name__ == "__main__":
     parser = Parser()
-    print(parser.parse(r"\int_{-\infty}^{\infty} \frac{e^{-x^2/2}}{\sqrt{2\pi}} dx"))
-    print(parser.parse(r"t_{\sqrt{2\pi} + 1/3}"))
+    print(parser.parse(r"\pi r^2"))

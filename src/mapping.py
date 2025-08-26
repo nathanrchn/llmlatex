@@ -2,16 +2,7 @@ from typing import Dict, Callable
 
 FORMATTER_TYPE = Callable[[str], str]
 
-DEFAULT_FORMATTERS = {
-    ("~", lambda _: "~" ),
-    ("&", lambda _: "&" ),
-    ("$", lambda _: "$" ),
-    ("{", lambda _: "{" ),
-    ("}", lambda _: "}" ),
-    ("%", lambda _: "%" ),
-    ("#", lambda _: "#" ),
-    ("_", lambda _: "_" ),
-}
+DEFAULT_FORMATTERS = {}
 
 
 class Mapping:
