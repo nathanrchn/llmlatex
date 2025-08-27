@@ -1233,8 +1233,9 @@ class Formatter:
         if node.superscript:
             superscript = self._format_node(node.superscript)
             if superscript in SPECIAL_SUPERSCRIPT_FORMAT:
-                superscript = SPECIAL_SUPERSCRIPT_FORMAT[superscript]
-            output += "^" + superscript
+                output += SPECIAL_SUPERSCRIPT_FORMAT[superscript]
+            else:
+                output += "^" + superscript
         return output
 
     def _format_macro_node(self, node: MacroNode) -> str:
