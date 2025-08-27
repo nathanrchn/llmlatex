@@ -1213,6 +1213,10 @@ DEFAULT_FORMATTERS = {
     "im": _simple_format("ℑ"),
 }
 
+SPECIAL_SUPERSCRIPT_FORMAT = {
+    "∘": "°"
+}
+
 
 class Formatter:
     def __init__(
@@ -1224,9 +1228,13 @@ class Formatter:
     def _format_text_node(self, node: TextNode) -> str:
         output = node.content
         if node.subscript:
-            output += "_" + self._format_node(node.subscript)
+            subscript = self._format_node(node.subscript)
+            output += "_" + subscript
         if node.superscript:
-            output += "^" + self._format_node(node.superscript)
+            superscript = self._format_node(node.superscript)
+            if superscript in SPECIAL_SUPERSCRIPT_FORMAT:
+                superscript = SPECIAL_SUPERSCRIPT_FORMAT[superscript]
+            output += "^" + superscript
         return output
 
     def _format_macro_node(self, node: MacroNode) -> str:
