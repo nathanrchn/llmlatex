@@ -1211,10 +1211,15 @@ DEFAULT_FORMATTERS = {
     "longleftrightarrow": _simple_format("⟺"),
     "t": _simple_format("T"),
     "im": _simple_format("ℑ"),
+    
+    # Special characters
+    "{": _simple_format("{"),
+    "}": _simple_format("}"),
 }
 
 SPECIAL_SUPERSCRIPT_FORMAT = {
-    "∘": "°"
+    "∘": "°",
+    "′": "′",
 }
 
 

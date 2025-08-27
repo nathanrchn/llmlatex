@@ -5,7 +5,7 @@ from typing import List, Set, Tuple, Optional
 
 from .nodes import Node, TextNode, MacroNode, MultiNode
 
-MACRO_PATTERN = r"\\([a-zA-Z]+)(?:\s*\[[^\]]*\]|\s*\{(?:[^{}]|\{[^{}]*\})*\})*"
+MACRO_PATTERN = r"\\([a-zA-Z]+|[{}$%&_#^~\\])(?:\s*\[[^\]]*\]|\s*\{(?:[^{}]|\{[^{}]*\})*\})*"
 SUBSCRIPT_PATTERN = r"_\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
 SUPERSCRIPT_PATTERN = r"\^\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
 MATH_INLINE_PATTERN = r"\$([^$]+)\$"
