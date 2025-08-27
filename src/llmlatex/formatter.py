@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import re
 from typing import Dict, Callable, Optional, List
 
 from .nodes import Node, TextNode, MacroNode, MultiNode
 
 
 BINARY_OPERATORS = {"+", "-", "*", "/", "=", "<", ">"}
+
+
+def _clean_parentheses_spacing(text: str) -> str:
+    text = re.sub(r"\(\s+", "(", text)
+    text = re.sub(r"\s+\)", ")", text)
+    return text
 
 
 def _simple_format(text: str) -> Callable[[MacroNode, Formatter, bool], str]:
@@ -1256,9 +1263,11 @@ class Formatter:
             raise ValueError(f"Unknown node type: {type(node)}")
 
     def format_nodes(self, nodes: List[Node], add_spaces: bool = False) -> str:
-        return "".join(
+        output = "".join(
             self._format_node(
                 node, add_spaces and isinstance(node, MultiNode) and node.type == "math"
             )
             for node in self._skip_empty_text_node(nodes)
         )
+        output = _clean_parentheses_spacing(output)
+        return output

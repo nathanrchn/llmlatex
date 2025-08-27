@@ -14,7 +14,6 @@ MATH_INLINE_PATTERN = r"\$([^$]+)\$"
 MATH_DISPLAY_PATTERN = r"\\?\[([^\]]+)\\?\]"
 MATH_DOUBLE_DOLLAR_PATTERN = r"\$\$([^$]+)\$\$"
 
-# Macro names to skip during parsing (placement and formatting commands)
 SKIP_MACROS = {
     "left",
     "right", 
@@ -245,7 +244,6 @@ class Parser:
 
         command_name = groups[0]
         
-        # Skip macros that are in the skip list
         if command_name in SKIP_MACROS:
             return None
             
