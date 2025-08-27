@@ -1331,10 +1331,20 @@ DEFAULT_FORMATTERS = {
     "epsfbox": _simple_format("epsfbox"),
     "Bbb": _format_mathbb,
     "Area": _simple_format("Area"),
-    "Longleftrightarrow": _simple_format("⟺"),
-    "Leftrightarrowa": _simple_format("⇔"),
+    "Leftrightarrow": _simple_format("⇔"),
     "math": _simple_format("math"),
-    "Pr": _simple_format("Pr"),
+    
+    # Lowercase versions of additional macro names
+    "s": _simple_format("S"),
+    "re": _simple_format("ℜ"),
+    "prove": _simple_format("Prove"),
+    "pr": _simple_format("Pr"),
+    "cdotr": _simple_format("·R"),
+    "o": _simple_format("O"),
+    "i": _simple_format("I"),
+    "longleftrightarrow": _simple_format("⟺"),
+    "t": _simple_format("T"),
+    "im": _simple_format("ℑ"),
 }
 
 
