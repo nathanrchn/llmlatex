@@ -5,8 +5,11 @@ from typing import Dict, Callable, Optional, List
 from .nodes import Node, TextNode, MacroNode, MultiNode
 
 
-def _simple_format(text: str) -> Callable[[MacroNode, Formatter], str]:
-    def _simple_format_wrapper(node: MacroNode, formatter: Formatter) -> str:
+BINARY_OPERATORS = {"+", "-", "*", "/", "=", "<", ">"}
+
+
+def _simple_format(text: str) -> Callable[[MacroNode, Formatter, bool], str]:
+    def _simple_format_wrapper(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
         return text
 
     return _simple_format_wrapper
@@ -29,8 +32,7 @@ def _needs_parentheses(formatted_string: str) -> bool:
             if paren_count == 0:
                 return False
 
-    operators = {"+", "-", "*", "/", "^", "=", "<", ">", "≤", "≥", "±"}
-    for op in operators:
+    for op in BINARY_OPERATORS:
         if op in formatted_string:
             return True
 
@@ -43,12 +45,12 @@ def _needs_parentheses(formatted_string: str) -> bool:
     return False
 
 
-def _format_sqrt(node: MacroNode, formatter: Formatter) -> str:
+def _format_sqrt(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if not node.optional_arguments or (
         node.optional_arguments and node.optional_arguments[0] == "2"
     ):
         if node.arguments:
-            formatted_arg = formatter._format_node(node.arguments[0])
+            formatted_arg = formatter._format_node(node.arguments[0], add_spaces)
             if _needs_parentheses(formatted_arg):
                 return f"√({formatted_arg})"
             else:
@@ -58,7 +60,7 @@ def _format_sqrt(node: MacroNode, formatter: Formatter) -> str:
     else:
         root_index = node.optional_arguments[0]
         if node.arguments:
-            formatted_arg = formatter._format_node(node.arguments[0])
+            formatted_arg = formatter._format_node(node.arguments[0], add_spaces)
             if _needs_parentheses(formatted_arg):
                 return f"({formatted_arg})^(1/{root_index})"
             else:
@@ -67,283 +69,286 @@ def _format_sqrt(node: MacroNode, formatter: Formatter) -> str:
             return f"x^(1/{root_index})"
 
 
-def _format_frac(node: MacroNode, formatter: Formatter) -> str:
+def _format_frac(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments and len(node.arguments) >= 2:
-        numerator = formatter._format_node(node.arguments[0])
-        denominator = formatter._format_node(node.arguments[1])
+        numerator = formatter._format_node(node.arguments[0], add_spaces)
+        denominator = formatter._format_node(node.arguments[1], add_spaces)
 
         if _needs_parentheses(numerator):
             numerator = f"({numerator})"
         if _needs_parentheses(denominator):
             denominator = f"({denominator})"
 
-        return f"{numerator}/{denominator}"
+        result = f"{numerator}/{denominator}"
+        if add_spaces:
+            result = formatter._add_spaces_to_content(result)
+        return result
     else:
         return "frac"
 
 
-def _format_textit(node: MacroNode, formatter: Formatter) -> str:
+def _format_textit(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"_{content}_"
     else:
         return ""
 
 
-def _format_text(node: MacroNode, formatter: Formatter) -> str:
+def _format_text(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        return formatter._format_node(node.arguments[0])
+        return formatter._format_node(node.arguments[0], add_spaces)
     else:
         return ""
 
 
-def _format_rceil(node: MacroNode, formatter: Formatter) -> str:
+def _format_rceil(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"⌈{content}⌉"
     else:
         return "⌈⌉"
 
 
-def _format_lceil(node: MacroNode, formatter: Formatter) -> str:
+def _format_lceil(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"⌈{content}⌉"
     else:
         return "⌈⌉"
 
 
-def _format_floor(node: MacroNode, formatter: Formatter) -> str:
+def _format_floor(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"⌊{content}⌋"
     else:
         return "⌊⌋"
 
 
-def _format_boxed(node: MacroNode, formatter: Formatter) -> str:
+def _format_boxed(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"[{content}]"
     else:
         return "[]"
 
 
-def _format_begin(node: MacroNode, formatter: Formatter) -> str:
+def _format_begin(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        return formatter._format_node(node.arguments[0])
+        return formatter._format_node(node.arguments[0], add_spaces)
     else:
         return ""
 
 
-def _format_end(node: MacroNode, formatter: Formatter) -> str:
+def _format_end(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        return formatter._format_node(node.arguments[0])
+        return formatter._format_node(node.arguments[0], add_spaces)
     else:
         return ""
 
 
-def _format_bar(node: MacroNode, formatter: Formatter) -> str:
+def _format_bar(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        return formatter._format_node(node.arguments[0])
+        return formatter._format_node(node.arguments[0], add_spaces)
     else:
         return "̄"
 
 
-def _format_overline(node: MacroNode, formatter: Formatter) -> str:
+def _format_overline(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        return formatter._format_node(node.arguments[0])
+        return formatter._format_node(node.arguments[0], add_spaces)
     else:
         return "̄"
 
 
-def _format_textbf(node: MacroNode, formatter: Formatter) -> str:
+def _format_textbf(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"**{content}**"
     else:
         return ""
 
 
-def _format_mathrm(node: MacroNode, formatter: Formatter) -> str:
+def _format_mathrm(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        return formatter._format_node(node.arguments[0])
+        return formatter._format_node(node.arguments[0], add_spaces)
     else:
         return ""
 
 
-def _format_mod(node: MacroNode, formatter: Formatter) -> str:
+def _format_mod(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f" mod {content}"
     else:
         return ""
 
 
-def _format_pmod(node: MacroNode, formatter: Formatter) -> str:
+def _format_pmod(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f" (mod {content})"
     else:
         return ""
 
 
-def _format_binom(node: MacroNode, formatter: Formatter) -> str:
+def _format_binom(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments and len(node.arguments) >= 2:
-        n = formatter._format_node(node.arguments[0])
-        k = formatter._format_node(node.arguments[1])
+        n = formatter._format_node(node.arguments[0], add_spaces)
+        k = formatter._format_node(node.arguments[1], add_spaces)
         return f"C({n},{k})"
     else:
         return ""
 
 
-def _format_left(node: MacroNode, formatter: Formatter) -> str:
+def _format_left(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        delimiter = formatter._format_node(node.arguments[0])
+        delimiter = formatter._format_node(node.arguments[0], add_spaces)
         return delimiter
     else:
         return ""
 
 
-def _format_right(node: MacroNode, formatter: Formatter) -> str:
+def _format_right(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        delimiter = formatter._format_node(node.arguments[0])
+        delimiter = formatter._format_node(node.arguments[0], add_spaces)
         return delimiter
     else:
         return ""
 
 
 # Additional mathematical functions and operators
-def _format_hat(node: MacroNode, formatter: Formatter) -> str:
+def _format_hat(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"{content}̂"
     else:
         return "̂"
 
 
-def _format_tilde(node: MacroNode, formatter: Formatter) -> str:
+def _format_tilde(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"{content}̃"
     else:
         return "̃"
 
 
-def _format_vec(node: MacroNode, formatter: Formatter) -> str:
+def _format_vec(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"{content}⃗"
     else:
         return "⃗"
 
 
-def _format_dot(node: MacroNode, formatter: Formatter) -> str:
+def _format_dot(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"{content}̇"
     else:
         return "̇"
 
 
-def _format_ddot(node: MacroNode, formatter: Formatter) -> str:
+def _format_ddot(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"{content}̈"
     else:
         return "̈"
 
 
-def _format_underline(node: MacroNode, formatter: Formatter) -> str:
+def _format_underline(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"_{content}_"
     else:
         return ""
 
 
-def _format_overbrace(node: MacroNode, formatter: Formatter) -> str:
+def _format_overbrace(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"⏞{content}"
     else:
         return "⏞"
 
 
-def _format_underbrace(node: MacroNode, formatter: Formatter) -> str:
+def _format_underbrace(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"⏟{content}"
     else:
         return "⏟"
 
 
-def _format_widetilde(node: MacroNode, formatter: Formatter) -> str:
+def _format_widetilde(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"{content}̃"
     else:
         return "̃"
 
 
-def _format_widehat(node: MacroNode, formatter: Formatter) -> str:
+def _format_widehat(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"{content}̂"
     else:
         return "̂"
 
 
-def _format_mathbf(node: MacroNode, formatter: Formatter) -> str:
+def _format_mathbf(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"**{content}**"
     else:
         return ""
 
 
-def _format_mathit(node: MacroNode, formatter: Formatter) -> str:
+def _format_mathit(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"_{content}_"
     else:
         return ""
 
 
-def _format_mathcal(node: MacroNode, formatter: Formatter) -> str:
+def _format_mathcal(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        return formatter._format_node(node.arguments[0])
+        return formatter._format_node(node.arguments[0], add_spaces)
     else:
         return ""
 
 
-def _format_mathbb(node: MacroNode, formatter: Formatter) -> str:
+def _format_mathbb(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        return formatter._format_node(node.arguments[0])
+        return formatter._format_node(node.arguments[0], add_spaces)
     else:
         return ""
 
 
-def _format_boldsymbol(node: MacroNode, formatter: Formatter) -> str:
+def _format_boldsymbol(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"**{content}**"
     else:
         return ""
 
 
-def _format_cancel(node: MacroNode, formatter: Formatter) -> str:
+def _format_cancel(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"~~{content}~~"
     else:
         return ""
 
 
 # Additional complex formatters
-def _format_cbrt(node: MacroNode, formatter: Formatter) -> str:
+def _format_cbrt(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        formatted_arg = formatter._format_node(node.arguments[0])
+        formatted_arg = formatter._format_node(node.arguments[0], add_spaces)
         if _needs_parentheses(formatted_arg):
             return f"∛({formatted_arg})"
         else:
@@ -352,138 +357,138 @@ def _format_cbrt(node: MacroNode, formatter: Formatter) -> str:
         return "∛"
 
 
-def _format_xrightarrow(node: MacroNode, formatter: Formatter) -> str:
+def _format_xrightarrow(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"--{content}-->"
     else:
         return "--->"
 
 
-def _format_overrightarrow(node: MacroNode, formatter: Formatter) -> str:
+def _format_overrightarrow(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"{content}⃗"
     else:
         return "⃗"
 
 
-def _format_overleftrightarrow(node: MacroNode, formatter: Formatter) -> str:
+def _format_overleftrightarrow(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"↔{content}"
     else:
         return "↔"
 
 
-def _format_stackrel(node: MacroNode, formatter: Formatter) -> str:
+def _format_stackrel(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments and len(node.arguments) >= 2:
-        top = formatter._format_node(node.arguments[0])
-        bottom = formatter._format_node(node.arguments[1])
+        top = formatter._format_node(node.arguments[0], add_spaces)
+        bottom = formatter._format_node(node.arguments[1], add_spaces)
         return f"{bottom}^{top}"
     else:
         return ""
 
 
-def _format_overset(node: MacroNode, formatter: Formatter) -> str:
+def _format_overset(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments and len(node.arguments) >= 2:
-        top = formatter._format_node(node.arguments[0])
-        bottom = formatter._format_node(node.arguments[1])
+        top = formatter._format_node(node.arguments[0], add_spaces)
+        bottom = formatter._format_node(node.arguments[1], add_spaces)
         return f"{bottom}^{top}"
     else:
         return ""
 
 
-def _format_underset(node: MacroNode, formatter: Formatter) -> str:
+def _format_underset(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments and len(node.arguments) >= 2:
-        bottom = formatter._format_node(node.arguments[0])
-        top = formatter._format_node(node.arguments[1])
+        bottom = formatter._format_node(node.arguments[0], add_spaces)
+        top = formatter._format_node(node.arguments[1], add_spaces)
         return f"{top}_{bottom}"
     else:
         return ""
 
 
-def _format_operatorname(node: MacroNode, formatter: Formatter) -> str:
+def _format_operatorname(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        return formatter._format_node(node.arguments[0])
+        return formatter._format_node(node.arguments[0], add_spaces)
     else:
         return ""
 
 
-def _format_phantom(node: MacroNode, formatter: Formatter) -> str:
+def _format_phantom(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return " " * len(content)  # Replace with spaces
     else:
         return ""
 
 
-def _format_hphantom(node: MacroNode, formatter: Formatter) -> str:
+def _format_hphantom(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return " " * len(content)  # Replace with spaces
     else:
         return ""
 
 
-def _format_fbox(node: MacroNode, formatter: Formatter) -> str:
+def _format_fbox(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"[{content}]"
     else:
         return "[]"
 
 
-def _format_mbox(node: MacroNode, formatter: Formatter) -> str:
+def _format_mbox(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        return formatter._format_node(node.arguments[0])
+        return formatter._format_node(node.arguments[0], add_spaces)
     else:
         return ""
 
 
-def _format_hbox(node: MacroNode, formatter: Formatter) -> str:
+def _format_hbox(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        return formatter._format_node(node.arguments[0])
+        return formatter._format_node(node.arguments[0], add_spaces)
     else:
         return ""
 
 
-def _format_emph(node: MacroNode, formatter: Formatter) -> str:
+def _format_emph(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"_{content}_"
     else:
         return ""
 
 
 # Document structure formatters (simple versions)
-def _format_section(node: MacroNode, formatter: Formatter) -> str:
+def _format_section(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"# {content}"
     else:
         return ""
 
 
-def _format_subsection(node: MacroNode, formatter: Formatter) -> str:
+def _format_subsection(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"## {content}"
     else:
         return ""
 
 
-def _format_title(node: MacroNode, formatter: Formatter) -> str:
+def _format_title(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"Title: {content}"
     else:
         return ""
 
 
-def _format_author(node: MacroNode, formatter: Formatter) -> str:
+def _format_author(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
     if node.arguments:
-        content = formatter._format_node(node.arguments[0])
+        content = formatter._format_node(node.arguments[0], add_spaces)
         return f"Author: {content}"
     else:
         return ""
@@ -496,7 +501,6 @@ DEFAULT_FORMATTERS = {
     "dfrac": _format_frac,
     "tfrac": _format_frac,
     "cfrac": _format_frac,
-    
     # Greek letters (lowercase)
     "alpha": _simple_format("α"),
     "beta": _simple_format("β"),
@@ -526,7 +530,6 @@ DEFAULT_FORMATTERS = {
     "chi": _simple_format("χ"),
     "psi": _simple_format("ψ"),
     "omega": _simple_format("ω"),
-    
     # Greek letters (uppercase)
     "Gamma": _simple_format("Γ"),
     "Delta": _simple_format("Δ"),
@@ -540,7 +543,6 @@ DEFAULT_FORMATTERS = {
     "Chi": _simple_format("Χ"),
     "Psi": _simple_format("Ψ"),
     "Omega": _simple_format("Ω"),
-    
     # Comparison operators
     "lt": _simple_format("<"),
     "le": _simple_format("≤"),
@@ -561,7 +563,6 @@ DEFAULT_FORMATTERS = {
     "simeq": _simple_format("≃"),
     "cong": _simple_format("≅"),
     "propto": _simple_format("∝"),
-    
     # Set operations
     "in": _simple_format("∈"),
     "notin": _simple_format("∉"),
@@ -577,7 +578,6 @@ DEFAULT_FORMATTERS = {
     "setminus": _simple_format("∖"),
     "emptyset": _simple_format("∅"),
     "varnothing": _simple_format("∅"),
-    
     # Logic operators
     "forall": _simple_format("∀"),
     "exists": _simple_format("∃"),
@@ -588,7 +588,6 @@ DEFAULT_FORMATTERS = {
     "wedge": _simple_format("∧"),
     "lor": _simple_format("∨"),
     "vee": _simple_format("∨"),
-    
     # Arrows
     "leftarrow": _simple_format("←"),
     "rightarrow": _simple_format("→"),
@@ -605,7 +604,6 @@ DEFAULT_FORMATTERS = {
     "nwarrow": _simple_format("↖"),
     "mapsto": _simple_format("↦"),
     "to": _simple_format("→"),
-    
     # Binary operations
     "pm": _simple_format("±"),
     "mp": _simple_format("∓"),
@@ -621,7 +619,6 @@ DEFAULT_FORMATTERS = {
     "otimes": _simple_format("⊗"),
     "oslash": _simple_format("⊘"),
     "odot": _simple_format("⊙"),
-    
     # Integrals and sums
     "sum": _simple_format("∑"),
     "prod": _simple_format("∏"),
@@ -629,7 +626,6 @@ DEFAULT_FORMATTERS = {
     "oint": _simple_format("∮"),
     "iint": _simple_format("∬"),
     "iiint": _simple_format("∭"),
-    
     # Delimiters
     "lfloor": _simple_format("⌊"),
     "rfloor": _simple_format("⌋"),
@@ -644,7 +640,6 @@ DEFAULT_FORMATTERS = {
     "rVert": _simple_format("‖"),
     "vert": _simple_format("|"),
     "Vert": _simple_format("‖"),
-    
     # Trigonometric functions
     "sin": _simple_format("sin"),
     "cos": _simple_format("cos"),
@@ -660,13 +655,11 @@ DEFAULT_FORMATTERS = {
     "cosh": _simple_format("cosh"),
     "tanh": _simple_format("tanh"),
     "coth": _simple_format("coth"),
-    
     # Logarithmic and exponential functions
     "log": _simple_format("log"),
     "ln": _simple_format("ln"),
     "lg": _simple_format("lg"),
     "exp": _simple_format("exp"),
-    
     # Mathematical functions
     "min": _simple_format("min"),
     "max": _simple_format("max"),
@@ -682,7 +675,6 @@ DEFAULT_FORMATTERS = {
     "ker": _simple_format("ker"),
     "deg": _simple_format("deg"),
     "Pr": _simple_format("Pr"),
-    
     # Special symbols
     "infty": _simple_format("∞"),
     "partial": _simple_format("∂"),
@@ -700,7 +692,6 @@ DEFAULT_FORMATTERS = {
     "top": _simple_format("⊤"),
     "mid": _simple_format("∣"),
     "nmid": _simple_format("∤"),
-    
     # Shapes and symbols
     "diamond": _simple_format("♦"),
     "Diamond": _simple_format("◊"),
@@ -714,18 +705,16 @@ DEFAULT_FORMATTERS = {
     "diamondsuit": _simple_format("♦"),
     "heartsuit": _simple_format("♥"),
     "spadesuit": _simple_format("♠"),
-    
     # Dots and spacing
     "cdots": _simple_format("⋯"),
     "ldots": _simple_format("..."),
     "vdots": _simple_format("⋮"),
     "ddots": _simple_format("⋱"),
     "dots": _simple_format("..."),
-    "quad": _simple_format("    "),
-    "qquad": _simple_format("        "),
+    "quad": _simple_format(" "),
+    "qquad": _simple_format(" "),
     "therefore": _simple_format("∴"),
     "because": _simple_format("∵"),
-    
     # Text formatting
     "textit": _format_textit,
     "textbf": _format_textbf,
@@ -745,7 +734,6 @@ DEFAULT_FORMATTERS = {
     "mathfrak": _format_mathcal,
     "boldsymbol": _format_boldsymbol,
     "bm": _format_boldsymbol,
-    
     # Special formatters with arguments
     "bar": _format_bar,
     "overline": _format_overline,
@@ -761,29 +749,23 @@ DEFAULT_FORMATTERS = {
     "underbrace": _format_underbrace,
     "cancel": _format_cancel,
     "boxed": _format_boxed,
-    
     # Binomial coefficients
     "binom": _format_binom,
     "dbinom": _format_binom,
     "tbinom": _format_binom,
     "choose": _format_binom,
-    
     # Modular arithmetic
     "mod": _format_mod,
     "pmod": _format_pmod,
     "bmod": _format_mod,
-    
     # Delimiters
     "left": _format_left,
     "right": _format_right,
-    
     # Simple letters and symbols
     "d": _simple_format("d"),
-    
     # Environment formatters
     "begin": _format_begin,
     "end": _format_end,
-    
     # Additional mathematical operators and symbols
     "implies": _simple_format("⇒"),
     "impliedby": _simple_format("⇐"),
@@ -813,7 +795,6 @@ DEFAULT_FORMATTERS = {
     "Longrightarrow": _simple_format("⟹"),
     "Longleftrightarrow": _simple_format("⟺"),
     "rightsquigarrow": _simple_format("⇝"),
-    
     # Additional set operations
     "sqsubseteq": _simple_format("⊑"),
     "sqcup": _simple_format("⊔"),
@@ -822,7 +803,6 @@ DEFAULT_FORMATTERS = {
     "subsetneqq": _simple_format("⊊"),
     "supsetneqq": _simple_format("⊋"),
     "varsubsetneqq": _simple_format("⊊"),
-    
     # Additional logic and relations
     "complement": _simple_format("∁"),
     "vartriangle": _simple_format("△"),
@@ -837,7 +817,6 @@ DEFAULT_FORMATTERS = {
     "boxminus": _simple_format("⊟"),
     "boxtimes": _simple_format("⊠"),
     "boxempty": _simple_format("□"),
-    
     # Additional arrows and relations
     "circledast": _simple_format("⊛"),
     "bigcirc": _simple_format("◯"),
@@ -847,7 +826,6 @@ DEFAULT_FORMATTERS = {
     "bigcap": _simple_format("⋂"),
     "bigcup": _simple_format("⋃"),
     "bigsqcup": _simple_format("⊔"),
-    
     # Size modifiers (empty in text representation)
     "big": _simple_format(""),
     "Big": _simple_format(""),
@@ -861,7 +839,6 @@ DEFAULT_FORMATTERS = {
     "Bigr": _simple_format(""),
     "biggr": _simple_format(""),
     "Biggr": _simple_format(""),
-    
     # Text size commands (empty in text representation)
     "tiny": _simple_format(""),
     "scriptsize": _simple_format(""),
@@ -872,12 +849,10 @@ DEFAULT_FORMATTERS = {
     "LARGE": _simple_format(""),
     "huge": _simple_format(""),
     "Huge": _simple_format(""),
-    
     # Additional mathematical functions
     "cbrt": _format_cbrt,
     "arg": _simple_format("arg"),
     "arctg": _simple_format("arctan"),  # arctg is sometimes used for arctan
-    
     # Additional symbols
     "flat": _simple_format("♭"),
     "sharp": _simple_format("♯"),
@@ -898,7 +873,6 @@ DEFAULT_FORMATTERS = {
     "angle": _simple_format("∠"),
     "prime": _simple_format("′"),
     "jmath": _simple_format("j"),
-    
     # Special formatting commands
     "mbox": _format_mbox,
     "hbox": _format_hbox,
@@ -911,25 +885,21 @@ DEFAULT_FORMATTERS = {
     "underset": _format_underset,
     "operatorname": _format_operatorname,
     "emph": _format_emph,
-    
     # Arrows with content
     "xrightarrow": _format_xrightarrow,
     "overrightarrow": _format_overrightarrow,
     "overleftrightarrow": _format_overleftrightarrow,
-    
     # Style switches (empty in text representation)
     "bf": _simple_format(""),
     "rm": _simple_format(""),
     "it": _simple_format(""),
     "em": _simple_format(""),
     "cal": _simple_format(""),
-    
     # Document structure
     "section": _format_section,
     "subsection": _format_subsection,
     "title": _format_title,
     "author": _format_author,
-    
     # Spacing commands (simplified)
     "hfill": _simple_format("    "),
     "hspace": _simple_format("  "),
@@ -941,25 +911,21 @@ DEFAULT_FORMATTERS = {
     "newline": _simple_format("\n"),
     "noindent": _simple_format(""),
     "centering": _simple_format(""),
-    
     # Additional dots
     "dotsb": _simple_format("..."),
     "dotsc": _simple_format("..."),
     "dotsm": _simple_format("..."),
     "hdots": _simple_format("..."),
-    
     # Mathematical relations
     "smile": _simple_format("⌣"),
     "frown": _simple_format("⌢"),
     "backsim": _simple_format("∽"),
     "mho": _simple_format("℧"),
-    
     # Additional brackets and delimiters
     "lhd": _simple_format("⊲"),
     "middle": _simple_format("|"),
     "vert": _simple_format("|"),
     "Vert": _simple_format("‖"),
-    
     # Layout commands (empty or minimal)
     "notag": _simple_format(""),
     "nonumber": _simple_format(""),
@@ -980,7 +946,6 @@ DEFAULT_FORMATTERS = {
     "over": _simple_format("/"),
     "atop": _simple_format(""),
     "choose": _format_binom,
-    
     # Text formatting
     "verb": _format_text,
     "textasciitilde": _simple_format("~"),
@@ -988,7 +953,6 @@ DEFAULT_FORMATTERS = {
     "textcircled": _format_text,
     "textcolor": _format_text,
     "textup": _format_text,
-    
     # Special commands
     "url": _format_text,
     "label": _format_text,
@@ -1007,11 +971,9 @@ DEFAULT_FORMATTERS = {
     "multicolumn": _format_text,
     "shortstack": _format_text,
     "substack": _format_text,
-    
     # Cancellation
     "cancel": _format_cancel,
     "xcancel": _format_cancel,
-    
     # Simple letter variables (for single-letter commands)
     "a": _simple_format("a"),
     "b": _simple_format("b"),
@@ -1038,7 +1000,6 @@ DEFAULT_FORMATTERS = {
     "y": _simple_format("y"),
     "z": _simple_format("z"),
     "Y": _simple_format("Y"),
-    
     # Additional text/word commands and domain-specific terms
     "improve": _simple_format("improve"),
     "Define": _simple_format("Define"),
@@ -1084,14 +1045,12 @@ DEFAULT_FORMATTERS = {
     "option": _simple_format("option"),
     "permit": _simple_format("permit"),
     "say": _simple_format("say"),
-    
     # Astronomical and planetary terms
     "neptune": _simple_format("neptune"),
     "earth": _simple_format("earth"),
     "astrosun": _simple_format("astrosun"),
     "uranus": _simple_format("uranus"),
     "leftmoon": _simple_format("leftmoon"),
-    
     # Mathematical symbols and operators
     "surd": _simple_format("√"),
     "digamma": _simple_format("ψ"),
@@ -1112,7 +1071,6 @@ DEFAULT_FORMATTERS = {
     "cotx": _simple_format("cot(x)"),
     "mathdollar": _simple_format("$"),
     "mathsf": _format_mathcal,
-    
     # Special symbols and shapes
     "Box": _simple_format("□"),
     "hexagon": _simple_format("⬡"),
@@ -1124,7 +1082,6 @@ DEFAULT_FORMATTERS = {
     "overarc": _format_overline,
     "overparen": _format_overbrace,
     "underrightarrow": _format_overrightarrow,
-    
     # Advanced formatting
     "breve": _format_hat,  # Similar to hat but different symbol
     "acute": _format_hat,  # Acute accent
@@ -1134,7 +1091,6 @@ DEFAULT_FORMATTERS = {
     "cdotR": _simple_format("·R"),
     "odotO": _simple_format("⊙O"),
     "overr": _simple_format("r"),
-    
     # Conditional and logical terms
     "equates": _simple_format("equals"),
     "equivalence": _simple_format("equivalence"),
@@ -1142,7 +1098,6 @@ DEFAULT_FORMATTERS = {
     "Meets": _simple_format("meets"),
     "Is": _simple_format("is"),
     "Note": _simple_format("Note"),
-    
     # Domain-specific abbreviations and terms
     "ICMC": _simple_format("ICMC"),
     "DEF": _simple_format("DEF"),
@@ -1175,7 +1130,6 @@ DEFAULT_FORMATTERS = {
     "balnf": _simple_format("balnf"),
     "spos": _simple_format("spos"),
     "deltaN": _simple_format("δN"),
-    
     # Special terms and commands
     "Blocked": _simple_format("Blocked"),
     "tags": _simple_format("tags"),
@@ -1199,7 +1153,6 @@ DEFAULT_FORMATTERS = {
     "Area": _simple_format("Area"),
     "Leftrightarrow": _simple_format("⇔"),
     "math": _simple_format("math"),
-    
     # Lowercase versions of additional macro names
     "s": _simple_format("S"),
     "re": _simple_format("ℜ"),
@@ -1211,10 +1164,16 @@ DEFAULT_FORMATTERS = {
     "longleftrightarrow": _simple_format("⟺"),
     "t": _simple_format("T"),
     "im": _simple_format("ℑ"),
-    
     # Special characters
     "{": _simple_format("{"),
     "}": _simple_format("}"),
+    "|": _simple_format("|"),
+    "(": _simple_format("("),
+    ")": _simple_format(")"),
+    "[": _simple_format("["),
+    "]": _simple_format("]"),
+    "(": _simple_format("("),
+    ")": _simple_format(")"),
 }
 
 SPECIAL_SUPERSCRIPT_FORMAT = {
@@ -1230,37 +1189,102 @@ class Formatter:
     ):
         self.formatters = {**DEFAULT_FORMATTERS, **(formatters or {})}
 
-    def _format_text_node(self, node: TextNode) -> str:
+    def _skip_empty_text_node(self, nodes: List[Node]) -> List[Node]:
+        return [node for node in nodes if not isinstance(node, TextNode) or node.content]
+
+    def _add_spaces_to_content(self, content: str) -> str:
+        i = 0
+        result = []
+
+        no_space_before = {"(", "[", "{"}
+        no_space_after = {")", "]", "}"}
+
+        while i < len(content):
+            char = content[i]
+
+            if char in BINARY_OPERATORS:
+                if result and result[-1] != " " and result[-1] not in no_space_before:
+                    result.append(" ")
+
+                result.append(char)
+
+                if (
+                    i + 1 < len(content)
+                    and content[i + 1] != " "
+                    and content[i + 1] not in no_space_after
+                ):
+                    result.append(" ")
+
+            elif char in no_space_before:
+                if result and result[-1] != " " and result[-1] not in BINARY_OPERATORS:
+                    if result[-1].isalnum():
+                        result.append(" ")
+                result.append(char)
+
+            elif char in no_space_after:
+                result.append(char)
+                if (
+                    i + 1 < len(content)
+                    and content[i + 1] not in BINARY_OPERATORS
+                    and content[i + 1] != " "
+                    and content[i + 1] not in no_space_after
+                ):
+                    if content[i + 1].isalnum():
+                        result.append(" ")
+
+            elif char == " ":
+                if not result or result[-1] != " ":
+                    result.append(char)
+
+            else:
+                result.append(char)
+
+            i += 1
+
+        return "".join(result)
+
+    def _format_text_node(self, node: TextNode, add_spaces: bool = False) -> str:
         output = node.content
+        if add_spaces:
+            output = self._add_spaces_to_content(output)
         if node.subscript:
-            subscript = self._format_node(node.subscript)
-            output += "_" + subscript
+            subscript = self._format_node(node.subscript, add_spaces)
+            output += f"_{subscript}"
         if node.superscript:
-            superscript = self._format_node(node.superscript)
+            superscript = self._format_node(node.superscript, add_spaces)
             if superscript in SPECIAL_SUPERSCRIPT_FORMAT:
                 output += SPECIAL_SUPERSCRIPT_FORMAT[superscript]
             else:
                 output += "^" + superscript
         return output
 
-    def _format_macro_node(self, node: MacroNode) -> str:
+    def _format_macro_node(self, node: MacroNode, add_spaces: bool = False) -> str:
         if node.name in self.formatters:
-            return self.formatters[node.name](node, self)
+            return self.formatters[node.name](node, self, add_spaces)
         else:
             raise ValueError(f"No formatter found for {node.name}")
 
-    def _format_multi_node(self, node: MultiNode) -> str:
-        return "".join(self._format_node(child) for child in node.content)
+    def _format_multi_node(self, node: MultiNode, add_spaces: bool = False) -> str:
+        separator = " " if node.type == "math" and add_spaces else ""
+        return separator.join(
+            self._format_node(child, add_spaces)
+            for child in self._skip_empty_text_node(node.content)
+        )
 
-    def _format_node(self, node: Node) -> str:
+    def _format_node(self, node: Node, add_spaces: bool = False) -> str:
         if isinstance(node, TextNode):
-            return self._format_text_node(node)
+            return self._format_text_node(node, add_spaces)
         elif isinstance(node, MacroNode):
-            return self._format_macro_node(node)
+            return self._format_macro_node(node, add_spaces)
         elif isinstance(node, MultiNode):
-            return self._format_multi_node(node)
+            return self._format_multi_node(node, add_spaces)
         else:
             raise ValueError(f"Unknown node type: {type(node)}")
 
-    def format_nodes(self, nodes: List[Node]) -> str:
-        return "".join(self._format_node(node) for node in nodes)
+    def format_nodes(self, nodes: List[Node], add_spaces: bool = False) -> str:
+        return "".join(
+            self._format_node(
+                node, add_spaces and isinstance(node, MultiNode) and node.type == "math"
+            )
+            for node in self._skip_empty_text_node(nodes)
+        )

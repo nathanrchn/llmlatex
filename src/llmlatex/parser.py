@@ -5,7 +5,9 @@ from typing import List, Set, Tuple, Optional
 
 from .nodes import Node, TextNode, MacroNode, MultiNode
 
-MACRO_PATTERN = r"\\([a-zA-Z]+|[{}$%&_#^~\\])(?:\s*\[[^\]]*\]|\s*\{(?:[^{}]|\{[^{}]*\})*\})*"
+MACRO_PATTERN = (
+    r"\\([a-zA-Z]+|[{}$%&_#^~\\|])(?:\s*\[[^\]]*\]|\s*\{(?:[^{}]|\{[^{}]*\})*\})*"
+)
 SUBSCRIPT_PATTERN = r"_\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
 SUPERSCRIPT_PATTERN = r"\^\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
 MATH_INLINE_PATTERN = r"\$([^$]+)\$"
@@ -71,9 +73,9 @@ class Parser:
                     if len(subscript_nodes) == 1:
                         subscript_node = subscript_nodes[0]
                     elif len(subscript_nodes) > 1:
-                        subscript_node = MultiNode(content=subscript_nodes)
+                        subscript_node = MultiNode(content=subscript_nodes, type="any")
                     else:
-                        subscript_node = TextNode("")
+                        subscript_node = None
 
                     # Add subscript to previous node
                     if isinstance(prev_node, (MacroNode, TextNode)):
@@ -104,9 +106,11 @@ class Parser:
                     if len(superscript_nodes) == 1:
                         superscript_node = superscript_nodes[0]
                     elif len(superscript_nodes) > 1:
-                        superscript_node = MultiNode(content=superscript_nodes)
+                        superscript_node = MultiNode(
+                            content=superscript_nodes, type="any"
+                        )
                     else:
-                        superscript_node = TextNode("")
+                        superscript_node = None
 
                     # Add superscript to previous node
                     if isinstance(prev_node, (MacroNode, TextNode)):
@@ -228,9 +232,9 @@ class Parser:
                 if len(arg_nodes) == 1:
                     required_args.append(arg_nodes[0])
                 elif len(arg_nodes) > 1:
-                    required_args.append(MultiNode(content=arg_nodes))
+                    required_args.append(MultiNode(content=arg_nodes, type="any"))
                 else:
-                    required_args.append(TextNode(""))
+                    required_args.append(None)
 
         return MacroNode(
             name=command_name,
@@ -310,9 +314,9 @@ class Parser:
                     if len(subscript_nodes) == 1:
                         subscript_node = subscript_nodes[0]
                     elif len(subscript_nodes) > 1:
-                        subscript_node = MultiNode(content=subscript_nodes)
+                        subscript_node = MultiNode(content=subscript_nodes, type="any")
                     else:
-                        subscript_node = TextNode("")
+                        subscript_node = None
 
                     # Create new node with subscript based on type
                     if isinstance(updated_node, MacroNode):
@@ -346,9 +350,11 @@ class Parser:
                     if len(superscript_nodes) == 1:
                         superscript_node = superscript_nodes[0]
                     elif len(superscript_nodes) > 1:
-                        superscript_node = MultiNode(content=superscript_nodes)
+                        superscript_node = MultiNode(
+                            content=superscript_nodes, type="any"
+                        )
                     else:
-                        superscript_node = TextNode("")
+                        superscript_node = None
 
                     # Create new node with superscript based on type
                     if isinstance(updated_node, MacroNode):
@@ -377,6 +383,133 @@ class Parser:
 
         return updated_node, current_pos
 
+    def _remove_spaces_from_math_nodes(self, nodes: List[Node]) -> List[Node]:
+        """Recursively remove spaces from text nodes within math content."""
+        processed_nodes = []
+
+        for node in nodes:
+            if isinstance(node, TextNode):
+                # Remove spaces from text content
+                cleaned_content = node.content.replace(" ", "")
+
+                # Process subscript and superscript if they exist
+                cleaned_subscript = None
+                cleaned_superscript = None
+
+                if node.subscript:
+                    cleaned_subscript = self._remove_spaces_from_single_node(
+                        node.subscript
+                    )
+
+                if node.superscript:
+                    cleaned_superscript = self._remove_spaces_from_single_node(
+                        node.superscript
+                    )
+
+                processed_nodes.append(
+                    TextNode(
+                        content=cleaned_content,
+                        subscript=cleaned_subscript,
+                        superscript=cleaned_superscript,
+                    )
+                )
+
+            elif isinstance(node, MacroNode):
+                # Process macro arguments recursively
+                cleaned_arguments = None
+                if node.arguments:
+                    cleaned_arguments = self._remove_spaces_from_math_nodes(
+                        node.arguments
+                    )
+
+                # Process subscript and superscript if they exist
+                cleaned_subscript = None
+                cleaned_superscript = None
+
+                if node.subscript:
+                    cleaned_subscript = self._remove_spaces_from_single_node(
+                        node.subscript
+                    )
+
+                if node.superscript:
+                    cleaned_superscript = self._remove_spaces_from_single_node(
+                        node.superscript
+                    )
+
+                processed_nodes.append(
+                    MacroNode(
+                        name=node.name,
+                        arguments=cleaned_arguments,
+                        optional_arguments=node.optional_arguments,
+                        subscript=cleaned_subscript,
+                        superscript=cleaned_superscript,
+                    )
+                )
+
+            elif isinstance(node, MultiNode):
+                # Recursively process multi-node content
+                cleaned_content = self._remove_spaces_from_math_nodes(node.content)
+                processed_nodes.append(
+                    MultiNode(content=cleaned_content, type=node.type)
+                )
+            else:
+                # For other node types, keep as is
+                processed_nodes.append(node)
+
+        return processed_nodes
+
+    def _remove_spaces_from_single_node(self, node: Node) -> Node:
+        """Helper to remove spaces from a single node."""
+        if isinstance(node, TextNode):
+            cleaned_content = node.content.replace(" ", "")
+
+            cleaned_subscript = None
+            cleaned_superscript = None
+
+            if node.subscript:
+                cleaned_subscript = self._remove_spaces_from_single_node(node.subscript)
+
+            if node.superscript:
+                cleaned_superscript = self._remove_spaces_from_single_node(
+                    node.superscript
+                )
+
+            return TextNode(
+                content=cleaned_content,
+                subscript=cleaned_subscript,
+                superscript=cleaned_superscript,
+            )
+
+        elif isinstance(node, MacroNode):
+            cleaned_arguments = None
+            if node.arguments:
+                cleaned_arguments = self._remove_spaces_from_math_nodes(node.arguments)
+
+            cleaned_subscript = None
+            cleaned_superscript = None
+
+            if node.subscript:
+                cleaned_subscript = self._remove_spaces_from_single_node(node.subscript)
+
+            if node.superscript:
+                cleaned_superscript = self._remove_spaces_from_single_node(
+                    node.superscript
+                )
+
+            return MacroNode(
+                name=node.name,
+                arguments=cleaned_arguments,
+                optional_arguments=node.optional_arguments,
+                subscript=cleaned_subscript,
+                superscript=cleaned_superscript,
+            )
+
+        elif isinstance(node, MultiNode):
+            cleaned_content = self._remove_spaces_from_math_nodes(node.content)
+            return MultiNode(content=cleaned_content, type=node.type)
+        else:
+            return node
+
     def _parse_multi_node(self, match: re.Match) -> Optional[MultiNode]:
         groups = match.groups()
         if not groups or not groups[0]:
@@ -387,8 +520,9 @@ class Parser:
             return None
 
         content_nodes = self.parse(math_content)
+        processed_nodes = self._remove_spaces_from_math_nodes(content_nodes)
 
-        return MultiNode(content=content_nodes)
+        return MultiNode(content=processed_nodes, type="math")
 
 
 def _collect_macro_names(node: Node) -> set[str]:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 
 @dataclass
@@ -28,3 +28,4 @@ class MacroNode(Node):
 @dataclass
 class MultiNode(Node):
     content: List[Node]
+    type: Literal["math", "any"] = "any"
