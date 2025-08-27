@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import os
 from typing import List, Set, Tuple, Optional
 
 from .nodes import Node, TextNode, MacroNode, MultiNode
@@ -43,7 +44,32 @@ SKIP_MACROS = {
 
 class Parser:
     def __init__(self):
-        pass
+        self.valid_commands = self._load_valid_commands()
+    
+    def _load_valid_commands(self) -> Set[str]:
+        valid_commands = set()
+
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        commands_file = os.path.join(current_dir, "commands.txt")
+        
+        try:
+            with open(commands_file, "r", encoding="utf-8") as f:
+                valid_commands = set([line[1:] for line in f.read().splitlines()])
+        except FileNotFoundError:
+            pass
+            
+        return valid_commands
+
+    def _find_valid_command_name(self, command_name: str) -> Optional[str]:
+        if command_name in self.valid_commands:
+            return command_name
+        
+        for i in range(len(command_name) - 1, 0, -1):
+            shortened_name = command_name[:i]
+            if shortened_name in self.valid_commands:
+                return shortened_name
+        
+        return None
 
     def parse(self, text: str) -> List[Node]:
         if not text:
@@ -80,15 +106,20 @@ class Parser:
                         continue
 
             if match_type == "macro":
-                node = self._parse_macro(next_match)
+                node, consumed_length = self._parse_macro(next_match)
                 if node:
                     # Check for subscripts and superscripts after the macro
-                    new_position = position + next_match.end()
+                    # Use the actual consumed length instead of the full match end
+                    new_position = position + consumed_length
                     updated_node, new_position = self._parse_scripts(
                         node, text, new_position
                     )
                     nodes.append(updated_node)
                     position = new_position
+                    continue
+                else:
+                    # Even if no node was created, we need to advance by the consumed length
+                    position = position + consumed_length
                     continue
             elif match_type == "subscript":
                 # This is a standalone subscript, we need to attach it to the previous node
@@ -237,17 +268,41 @@ class Parser:
         earliest = min(matches, key=lambda x: x[0])
         return earliest[1], earliest[2]
 
-    def _parse_macro(self, match: re.Match) -> Optional[MacroNode]:
+    def _parse_macro(self, match: re.Match) -> Tuple[Optional[MacroNode], int]:
+        """
+        Parse a macro and return the node and the actual consumed length.
+        
+        Returns:
+            Tuple of (MacroNode or None, consumed_length)
+            where consumed_length is how many characters from the match were actually used.
+        """
         groups = match.groups()
         if not groups or not groups[0]:
-            return None
+            return None, match.end()
 
-        command_name = groups[0]
+        original_command_name = groups[0]
         
-        if command_name in SKIP_MACROS:
-            return None
+        # Find the longest valid command name by progressively shortening
+        command_name = self._find_valid_command_name(original_command_name)
+        
+        if not command_name or command_name in SKIP_MACROS:
+            return None, match.end()
+        
+        # Calculate how much of the original match we actually consumed
+        if len(command_name) < len(original_command_name):
+            # We shortened the command, so we need to adjust the consumed length
+            # The match starts with \commandname, so we need to account for the backslash
+            consumed_length = len(command_name) + 1  # +1 for the backslash
+        else:
+            consumed_length = match.end()
             
-        full_match = match.group(0)
+        # For shortened commands, we only parse arguments from the valid command part
+        if len(command_name) < len(original_command_name):
+            # Reconstruct the match string for just the valid command
+            valid_command_str = "\\" + command_name
+            full_match = valid_command_str
+        else:
+            full_match = match.group(0)
 
         optional_args = []
         optional_matches = re.findall(r"\[([^\]]*)\]", full_match)
@@ -266,11 +321,13 @@ class Parser:
                 else:
                     required_args.append(None)
 
-        return MacroNode(
+        node = MacroNode(
             name=command_name,
             optional_arguments=optional_args if optional_args else None,
             arguments=required_args if required_args else None,
         )
+        
+        return node, consumed_length
 
     def _extract_brace_arguments(self, text: str) -> List[str]:
         arguments = []

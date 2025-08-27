@@ -1155,6 +1155,7 @@ DEFAULT_FORMATTERS = {
     "]": _simple_format("]"),
     "(": _simple_format("("),
     ")": _simple_format(")"),
+    "%": _simple_format("%"),
 }
 
 SPECIAL_SUPERSCRIPT_FORMAT = {
