@@ -758,9 +758,6 @@ DEFAULT_FORMATTERS = {
     "mod": _format_mod,
     "pmod": _format_pmod,
     "bmod": _format_mod,
-    # Delimiters
-    "left": _format_left,
-    "right": _format_right,
     # Simple letters and symbols
     "d": _simple_format("d"),
     # Environment formatters
@@ -826,29 +823,6 @@ DEFAULT_FORMATTERS = {
     "bigcap": _simple_format("⋂"),
     "bigcup": _simple_format("⋃"),
     "bigsqcup": _simple_format("⊔"),
-    # Size modifiers (empty in text representation)
-    "big": _simple_format(""),
-    "Big": _simple_format(""),
-    "bigg": _simple_format(""),
-    "Bigg": _simple_format(""),
-    "bigl": _simple_format(""),
-    "Bigl": _simple_format(""),
-    "biggl": _simple_format(""),
-    "Biggl": _simple_format(""),
-    "bigr": _simple_format(""),
-    "Bigr": _simple_format(""),
-    "biggr": _simple_format(""),
-    "Biggr": _simple_format(""),
-    # Text size commands (empty in text representation)
-    "tiny": _simple_format(""),
-    "scriptsize": _simple_format(""),
-    "footnotesize": _simple_format(""),
-    "small": _simple_format(""),
-    "large": _simple_format(""),
-    "Large": _simple_format(""),
-    "LARGE": _simple_format(""),
-    "huge": _simple_format(""),
-    "Huge": _simple_format(""),
     # Additional mathematical functions
     "cbrt": _format_cbrt,
     "arg": _simple_format("arg"),

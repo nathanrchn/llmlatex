@@ -14,6 +14,33 @@ MATH_INLINE_PATTERN = r"\$([^$]+)\$"
 MATH_DISPLAY_PATTERN = r"\\?\[([^\]]+)\\?\]"
 MATH_DOUBLE_DOLLAR_PATTERN = r"\$\$([^$]+)\$\$"
 
+# Macro names to skip during parsing (placement and formatting commands)
+SKIP_MACROS = {
+    "left",
+    "right", 
+    "big",
+    "Big",
+    "bigg",
+    "Bigg",
+    "bigl",
+    "bigr",
+    "Bigl",
+    "Bigr",
+    "biggl", 
+    "biggr",
+    "Biggl",
+    "Biggr",
+    "tiny",
+    "scriptsize",
+    "footnotesize",
+    "small",
+    "large",
+    "Large",
+    "LARGE",
+    "huge",
+    "Huge"
+}
+
 
 class Parser:
     def __init__(self):
@@ -217,6 +244,11 @@ class Parser:
             return None
 
         command_name = groups[0]
+        
+        # Skip macros that are in the skip list
+        if command_name in SKIP_MACROS:
+            return None
+            
         full_match = match.group(0)
 
         optional_args = []
