@@ -197,10 +197,6 @@ def _format_binom(node: MacroNode, formatter: Formatter) -> str:
         return ""
 
 
-def _format_dfrac(node: MacroNode, formatter: Formatter) -> str:
-    return _format_frac(node, formatter)
-
-
 def _format_left(node: MacroNode, formatter: Formatter) -> str:
     if node.arguments:
         delimiter = formatter._format_node(node.arguments[0])
@@ -344,26 +340,6 @@ def _format_cancel(node: MacroNode, formatter: Formatter) -> str:
         return ""
 
 
-def _format_tfrac(node: MacroNode, formatter: Formatter) -> str:
-    # tfrac is the same as frac for text representation
-    return _format_frac(node, formatter)
-
-
-def _format_cfrac(node: MacroNode, formatter: Formatter) -> str:
-    # cfrac is the same as frac for text representation
-    return _format_frac(node, formatter)
-
-
-def _format_dbinom(node: MacroNode, formatter: Formatter) -> str:
-    # dbinom is the same as binom for text representation
-    return _format_binom(node, formatter)
-
-
-def _format_tbinom(node: MacroNode, formatter: Formatter) -> str:
-    # tbinom is the same as binom for text representation
-    return _format_binom(node, formatter)
-
-
 # Additional complex formatters
 def _format_cbrt(node: MacroNode, formatter: Formatter) -> str:
     if node.arguments:
@@ -450,11 +426,6 @@ def _format_hphantom(node: MacroNode, formatter: Formatter) -> str:
         return ""
 
 
-def _format_vphantom(node: MacroNode, formatter: Formatter) -> str:
-    # vphantom doesn't affect horizontal spacing in text
-    return ""
-
-
 def _format_fbox(node: MacroNode, formatter: Formatter) -> str:
     if node.arguments:
         content = formatter._format_node(node.arguments[0])
@@ -483,31 +454,6 @@ def _format_emph(node: MacroNode, formatter: Formatter) -> str:
         return f"_{content}_"
     else:
         return ""
-
-
-def _format_bf(node: MacroNode, formatter: Formatter) -> str:
-    # bf is a style switch, typically affects following text
-    return ""
-
-
-def _format_rm(node: MacroNode, formatter: Formatter) -> str:
-    # rm is a style switch
-    return ""
-
-
-def _format_it(node: MacroNode, formatter: Formatter) -> str:
-    # it is a style switch
-    return ""
-
-
-def _format_em(node: MacroNode, formatter: Formatter) -> str:
-    # em is a style switch
-    return ""
-
-
-def _format_cal(node: MacroNode, formatter: Formatter) -> str:
-    # cal is a style switch
-    return ""
 
 
 # Document structure formatters (simple versions)
@@ -547,9 +493,9 @@ DEFAULT_FORMATTERS = {
     # Basic formatters
     "sqrt": _format_sqrt,
     "frac": _format_frac,
-    "dfrac": _format_dfrac,
-    "tfrac": _format_tfrac,
-    "cfrac": _format_cfrac,
+    "dfrac": _format_frac,
+    "tfrac": _format_frac,
+    "cfrac": _format_frac,
     
     # Greek letters (lowercase)
     "alpha": _simple_format("α"),
@@ -818,8 +764,8 @@ DEFAULT_FORMATTERS = {
     
     # Binomial coefficients
     "binom": _format_binom,
-    "dbinom": _format_dbinom,
-    "tbinom": _format_tbinom,
+    "dbinom": _format_binom,
+    "tbinom": _format_binom,
     "choose": _format_binom,
     
     # Modular arithmetic
@@ -959,7 +905,7 @@ DEFAULT_FORMATTERS = {
     "fbox": _format_fbox,
     "phantom": _format_phantom,
     "hphantom": _format_hphantom,
-    "vphantom": _format_vphantom,
+    "vphantom": _simple_format(""),
     "stackrel": _format_stackrel,
     "overset": _format_overset,
     "underset": _format_underset,
@@ -972,11 +918,11 @@ DEFAULT_FORMATTERS = {
     "overleftrightarrow": _format_overleftrightarrow,
     
     # Style switches (empty in text representation)
-    "bf": _format_bf,
-    "rm": _format_rm,
-    "it": _format_it,
-    "em": _format_em,
-    "cal": _format_cal,
+    "bf": _simple_format(""),
+    "rm": _simple_format(""),
+    "it": _simple_format(""),
+    "em": _simple_format(""),
+    "cal": _simple_format(""),
     
     # Document structure
     "section": _format_section,
