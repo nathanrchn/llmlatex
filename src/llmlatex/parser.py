@@ -4,6 +4,7 @@ import re
 import os
 from typing import List, Set, Tuple, Optional
 
+from .commands import COMMANDS
 from .nodes import Node, TextNode, MacroNode, MultiNode
 
 MACRO_PATTERN = (
@@ -44,21 +45,7 @@ SKIP_MACROS = {
 
 class Parser:
     def __init__(self):
-        self.valid_commands = self._load_valid_commands()
-    
-    def _load_valid_commands(self) -> Set[str]:
-        valid_commands = set()
-
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        commands_file = os.path.join(current_dir, "commands.txt")
-        
-        try:
-            with open(commands_file, "r", encoding="utf-8") as f:
-                valid_commands = set([line[1:] for line in f.read().splitlines()])
-        except FileNotFoundError:
-            pass
-            
-        return valid_commands
+        self.valid_commands = set(COMMANDS.split())
 
     def _find_valid_command_name(self, command_name: str) -> Optional[str]:
         if command_name in self.valid_commands:
