@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import List, Tuple, Optional
+from typing import List, Set, Tuple, Optional
 
 from .nodes import Node, TextNode, MacroNode, MultiNode
 
@@ -421,11 +421,11 @@ def _collect_macro_names(node: Node) -> set[str]:
     return macro_names
 
 
-def enumerate_macros(text: str) -> List[str]:
+def enumerate_macros(text: str) -> Set[str]:
     nodes = Parser().parse(text)
 
     all_macro_names = set()
     for node in nodes:
         all_macro_names.update(_collect_macro_names(node))
 
-    return list(all_macro_names)
+    return all_macro_names
