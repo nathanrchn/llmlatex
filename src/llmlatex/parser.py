@@ -386,7 +386,7 @@ class Parser:
         if not math_content:
             return None
 
-        content_nodes = [TextNode(math_content)]
+        content_nodes = self.parse(math_content)
 
         return MultiNode(content=content_nodes)
 

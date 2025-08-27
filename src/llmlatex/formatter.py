@@ -1222,7 +1222,12 @@ class Formatter:
         self.formatters = {**DEFAULT_FORMATTERS, **(formatters or {})}
 
     def _format_text_node(self, node: TextNode) -> str:
-        return node.content
+        output = node.content
+        if node.subscript:
+            output += "_" + self._format_node(node.subscript)
+        if node.superscript:
+            output += "^" + self._format_node(node.superscript)
+        return output
 
     def _format_macro_node(self, node: MacroNode) -> str:
         if node.name in self.formatters:
