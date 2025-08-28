@@ -4,7 +4,7 @@ import re
 from typing import List, Set, Tuple, Optional
 
 from .commands import COMMANDS
-from .nodes import Node, TextNode, MacroNode, MultiNode
+from .nodes import Node, TextNode, MacroNode, MultiNode, EnvironmentNode
 
 MACRO_PATTERN = (
     r"\\([a-zA-Z]+|[{}$%&_#^~\\| ])(?:\s*\[[^\]]*\]|\s*\{(?:[^{}]|\{[^{}]*\})*\})*"
@@ -14,6 +14,7 @@ SUPERSCRIPT_PATTERN = r"\^\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
 MATH_INLINE_PATTERN = r"\$([^$]+)\$"
 MATH_DISPLAY_PATTERN = r"\\?\[([^\]]+)\\?\]"
 MATH_DOUBLE_DOLLAR_PATTERN = r"\$\$([^$]+)\$\$"
+ENVIRONMENT_PATTERN = r"\\begin\{([^}]+)\}(.*?)\\end\{\1\}"
 
 
 def _is_false_positive_math_inline(
@@ -283,6 +284,17 @@ class Parser:
                     nodes.append(updated_node)
                     position = new_position
                     continue
+            elif match_type == "environment":
+                node = self._parse_environment_node(next_match)
+                if node:
+                    # Check for subscripts and superscripts after environment blocks too
+                    new_position = position + next_match.end()
+                    updated_node, new_position = self._parse_scripts(
+                        node, text, new_position
+                    )
+                    nodes.append(updated_node)
+                    position = new_position
+                    continue
 
             position = position + next_match.end()
 
@@ -349,6 +361,17 @@ class Parser:
                     start_pos + math_double_match.start(),
                     math_double_match,
                     "math_double_dollar",
+                )
+            )
+
+        # Look for environments with DOTALL flag to handle multiline content
+        environment_match = re.search(ENVIRONMENT_PATTERN, search_text, re.DOTALL)
+        if environment_match:
+            matches.append(
+                (
+                    start_pos + environment_match.start(),
+                    environment_match,
+                    "environment",
                 )
             )
 
@@ -518,6 +541,13 @@ class Parser:
                             subscript=subscript_node,
                             superscript=updated_node.superscript,
                         )
+                    elif isinstance(updated_node, EnvironmentNode):
+                        updated_node = EnvironmentNode(
+                            name=updated_node.name,
+                            content=updated_node.content,
+                            subscript=subscript_node,
+                            superscript=updated_node.superscript,
+                        )
                     # For other node types, we can't add scripts directly
                     else:
                         break
@@ -552,6 +582,13 @@ class Parser:
                         )
                     elif isinstance(updated_node, TextNode):
                         updated_node = TextNode(
+                            content=updated_node.content,
+                            subscript=updated_node.subscript,
+                            superscript=superscript_node,
+                        )
+                    elif isinstance(updated_node, EnvironmentNode):
+                        updated_node = EnvironmentNode(
+                            name=updated_node.name,
                             content=updated_node.content,
                             subscript=updated_node.subscript,
                             superscript=superscript_node,
@@ -757,6 +794,25 @@ class Parser:
 
         return MultiNode(content=processed_nodes, type="math")
 
+    def _parse_environment_node(self, match: re.Match) -> Optional[EnvironmentNode]:
+        groups = match.groups()
+        if not groups or len(groups) < 2:
+            return None
+
+        env_name = groups[0].strip()
+        env_content = groups[1]
+
+        if not env_name:
+            return None
+
+        # Parse the content within the environment
+        if env_content:
+            content_nodes = self.parse(env_content)
+        else:
+            content_nodes = []
+
+        return EnvironmentNode(name=env_name, content=content_nodes)
+
 
 def _collect_macro_names(node: Node) -> set[str]:
     macro_names = set()
@@ -779,6 +835,16 @@ def _collect_macro_names(node: Node) -> set[str]:
             macro_names.update(_collect_macro_names(content_node))
 
     elif isinstance(node, TextNode):
+        if node.subscript:
+            macro_names.update(_collect_macro_names(node.subscript))
+
+        if node.superscript:
+            macro_names.update(_collect_macro_names(node.superscript))
+
+    elif isinstance(node, EnvironmentNode):
+        for content_node in node.content:
+            macro_names.update(_collect_macro_names(content_node))
+
         if node.subscript:
             macro_names.update(_collect_macro_names(node.subscript))
 

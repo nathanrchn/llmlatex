@@ -29,3 +29,11 @@ class MacroNode(Node):
 class MultiNode(Node):
     content: List[Node]
     type: Literal["math", "any"] = "any"
+
+
+@dataclass
+class EnvironmentNode(Node):
+    name: str
+    content: List[Node]
+    subscript: Optional[Node] = None
+    superscript: Optional[Node] = None

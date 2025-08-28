@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, Callable, Optional, List, Tuple
+from typing import Dict, Callable, Optional, List
 
-from .nodes import Node, TextNode, MacroNode, MultiNode
+from .nodes import Node, TextNode, MacroNode, MultiNode, EnvironmentNode
 
 
 BINARY_OPERATORS = {"+", "-", "*", "/", "=", "<", ">"}
@@ -59,7 +59,7 @@ def _format_sqrt(
 ) -> str:
     # Handles \sqrt[n]{...}
     if node.optional_arguments:
-        root_index = formatter._format_node(node.optional_arguments[0], add_spaces)
+        root_index = node.optional_arguments[0]
         if node.arguments:
             formatted_arg = formatter._format_node(node.arguments[0], add_spaces)
             if _needs_parentheses(formatted_arg):
@@ -178,16 +178,6 @@ def _format_boxed(
         return "[]"
 
 
-def _format_begin_end(
-    node: MacroNode, formatter: Formatter, add_spaces: bool = False
-) -> str:
-    # For begin/end, we often just format the content within, ignoring the environment name for simple cases.
-    if node.arguments:
-        return formatter._format_node(node.arguments[0], add_spaces)
-    else:
-        return ""
-
-
 def _format_accent(
     node: MacroNode, formatter: Formatter, accent: str, add_spaces: bool = False
 ) -> str:
@@ -289,6 +279,42 @@ def _format_phantom(
         return " " * len(content)
     else:
         return ""
+
+
+def _format_environment(env_name: str, content: str) -> str:
+    """Format environment content based on environment type."""
+    # Clean up the content first
+    # Replace \\ with newlines
+    cleaned_content = content.replace("\\\\", "\n")
+    
+    # Handle & symbols based on environment type
+    if env_name in {"matrix", "pmatrix", "bmatrix", "vmatrix", "Vmatrix", "array"}:
+        # For matrix-like environments, replace & with spaces or tabs for readability
+        cleaned_content = cleaned_content.replace("&", "  ")
+    elif env_name in {"align", "align*", "aligned"}:
+        # For alignment environments, & marks alignment points, replace with spaces
+        cleaned_content = cleaned_content.replace("&", " ")
+    elif env_name in {"cases"}:
+        # For cases environment, & separates condition from result
+        cleaned_content = cleaned_content.replace("&", " if ")
+    else:
+        # For other environments, remove & entirely as they're usually unnecessary
+        cleaned_content = cleaned_content.replace("&", "")
+    
+    # Apply environment-specific delimiters
+    if env_name == "pmatrix":
+        return f"({cleaned_content})"
+    elif env_name == "bmatrix":
+        return f"[{cleaned_content}]"
+    elif env_name == "vmatrix":
+        return f"|{cleaned_content}|"
+    elif env_name == "Vmatrix":
+        return f"‖{cleaned_content}‖"
+    elif env_name == "cases":
+        return f"{{{cleaned_content}}}"
+    else:
+        # Default formatting for other environments (matrix, align, equation, etc.)
+        return cleaned_content
 
 
 DEFAULT_FORMATTERS = {
@@ -555,7 +581,6 @@ DEFAULT_FORMATTERS = {
     "bigotimes": _simple_format("⨂"),
     "bigodot": _simple_format("⨀"),
     "biguplus": _simple_format("⨄"),
-    "bigsqcup": _simple_format("⨆"),
     # Delimiters & Brackets
     "lfloor": _simple_format("⌊"),
     "rfloor": _simple_format("⌋"),
@@ -696,7 +721,6 @@ DEFAULT_FORMATTERS = {
     "smile": _simple_format("⌣"),
     "frown": _simple_format("⌢"),
     # Dots and spacing
-    "cdot": _simple_format("·"),
     "cdots": _simple_format("⋯"),
     "ldots": _simple_format("…"),
     "vdots": _simple_format("⋮"),
@@ -796,8 +820,6 @@ DEFAULT_FORMATTERS = {
     "LaTeX": _simple_format("LaTeX"),
     "normalsize": _simple_format(""),
     # Structural & Layout
-    "begin": _format_begin_end,
-    "end": _format_begin_end,
     "begingroup": _simple_format(""),
     "endgroup": _simple_format(""),
     "endarray": _simple_format(""),
@@ -927,7 +949,6 @@ DEFAULT_FORMATTERS = {
     "M": _simple_format("M"),
     "O": _simple_format("O"),
     "r": _simple_format("r"),
-    "S": _simple_format("S"),
     "t": _simple_format("t"),
     "T": _simple_format("T"),
     "u": _simple_format("u"),
@@ -959,7 +980,6 @@ DEFAULT_FORMATTERS = {
     "height": _simple_format(""),
     "long": _simple_format(""),
     "mark": _simple_format(""),
-    "ne": _simple_format("≠"),
     "o": _simple_format("o"),
     "time": _simple_format("×"),
     "th": _simple_format("th"),
@@ -1006,7 +1026,8 @@ class Formatter:
         return [
             node
             for node in nodes
-            if not (
+            if node is not None
+            and not (
                 (isinstance(node, TextNode) and not node.content)
                 or (
                     node_type == "math"
@@ -1095,6 +1116,29 @@ class Formatter:
             for child in self._skip_empty_text_node(node.content, node.type)
         )
 
+    def _format_environment_node(
+        self, node: EnvironmentNode, add_spaces: bool = False
+    ) -> str:
+        # Format the content within the environment
+        content = "".join(
+            self._format_node(child, add_spaces)
+            for child in self._skip_empty_text_node(node.content)
+        )
+
+        # Apply environment-specific formatting
+        formatted_content = _format_environment(node.name, content)
+
+        # Handle subscripts and superscripts
+        output = formatted_content
+        if node.subscript:
+            subscript = self._format_node(node.subscript, add_spaces)
+            output += f"_{subscript}"
+        if node.superscript:
+            superscript = self._format_node(node.superscript, add_spaces)
+            output += f"^{superscript}"
+
+        return output
+
     def _format_node(self, node: Node, add_spaces: bool = False) -> str:
         if isinstance(node, TextNode):
             return self._format_text_node(node, add_spaces)
@@ -1102,6 +1146,8 @@ class Formatter:
             return self._format_macro_node(node, add_spaces)
         elif isinstance(node, MultiNode):
             return self._format_multi_node(node, add_spaces)
+        elif isinstance(node, EnvironmentNode):
+            return self._format_environment_node(node, add_spaces)
         else:
             raise ValueError(f"Unknown node type: {type(node)}")
 
