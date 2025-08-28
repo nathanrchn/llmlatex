@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import os
 from typing import List, Set, Tuple, Optional
 
 from .commands import COMMANDS
@@ -15,6 +14,99 @@ SUPERSCRIPT_PATTERN = r"\^\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
 MATH_INLINE_PATTERN = r"\$([^$]+)\$"
 MATH_DISPLAY_PATTERN = r"\\?\[([^\]]+)\\?\]"
 MATH_DOUBLE_DOLLAR_PATTERN = r"\$\$([^$]+)\$\$"
+
+
+def _is_false_positive_math_inline(
+    content: str, full_text: str, match_start: int, match_end: int
+) -> bool:
+    content = content.strip()
+
+    if re.match(r"^\d+(\.\d{1,2})?$", content):
+        return True
+
+    if re.match(r"^\d+(\.\d{1,2})?[.,;!?]", content):
+        return True
+
+    context_before = full_text[max(0, match_start - 20) : match_start]
+    context_after = full_text[match_end : min(len(full_text), match_end + 20)]
+
+    currency_words = {
+        "cost",
+        "costs",
+        "price",
+        "dollar",
+        "dollars",
+        "cent",
+        "cents",
+        "pay",
+        "paid",
+        "spend",
+        "spent",
+        "buy",
+        "bought",
+        "sell",
+        "sold",
+        "worth",
+        "value",
+        "money",
+        "cash",
+        "bill",
+        "total",
+        "amount",
+    }
+
+    context_text = (context_before + " " + context_after).lower()
+    if any(word in context_text for word in currency_words):
+        if re.match(r"^\d+(\.\d{1,2})?$", content):
+            return True
+
+    math_indicators = {
+        "+",
+        "-",
+        "*",
+        "/",
+        "=",
+        "<",
+        ">",
+        "\\",
+        "^",
+        "_",
+        "frac",
+        "sqrt",
+        "sum",
+        "int",
+        "lim",
+        "sin",
+        "cos",
+        "tan",
+        "log",
+        "ln",
+        "exp",
+        "alpha",
+        "beta",
+        "gamma",
+        "delta",
+        "theta",
+        "pi",
+        "sigma",
+        "infty",
+    }
+
+    if any(indicator in content for indicator in math_indicators):
+        return False
+
+    if re.search(r"[a-zA-Z]", content):
+        if re.match(r"^\d+(\.\d{1,2})?$", content) and any(
+            word in context_text for word in currency_words
+        ):
+            return True
+        return False
+
+    if re.match(r"^\d+(\.\d{1,2})?$", content):
+        return True
+
+    return False
+
 
 SKIP_MACROS = {
     "def",
@@ -47,7 +139,6 @@ SKIP_MACROS = {
 class Parser:
     def __init__(self):
         self.valid_commands = set(COMMANDS.split())
-        # Add space character manually since split() uses it as delimiter
         self.valid_commands.add(" ")
 
     def _find_valid_command_name(self, command_name: str) -> Optional[str]:
@@ -226,13 +317,20 @@ class Parser:
 
         math_inline_match = re.search(MATH_INLINE_PATTERN, search_text)
         if math_inline_match:
-            matches.append(
-                (
-                    start_pos + math_inline_match.start(),
-                    math_inline_match,
-                    "math_inline",
+            content = math_inline_match.group(1)
+            match_start_in_full_text = start_pos + math_inline_match.start()
+            match_end_in_full_text = start_pos + math_inline_match.end()
+
+            if not _is_false_positive_math_inline(
+                content, text, match_start_in_full_text, match_end_in_full_text
+            ):
+                matches.append(
+                    (
+                        start_pos + math_inline_match.start(),
+                        math_inline_match,
+                        "math_inline",
+                    )
                 )
-            )
 
         math_display_match = re.search(MATH_DISPLAY_PATTERN, search_text)
         if math_display_match:
@@ -504,11 +602,22 @@ class Parser:
             elif isinstance(node, MacroNode):
                 # Check if this is a text-preserving command
                 text_preserving_commands = {
-                    "text", "mathrm", "mathit", "mathbf", "mathsf", "mathtt", 
-                    "mathcal", "mathscr", "mathfrak", "textbf", "textit", 
-                    "textrm", "textsf", "texttt"
+                    "text",
+                    "mathrm",
+                    "mathit",
+                    "mathbf",
+                    "mathsf",
+                    "mathtt",
+                    "mathcal",
+                    "mathscr",
+                    "mathfrak",
+                    "textbf",
+                    "textit",
+                    "textrm",
+                    "textsf",
+                    "texttt",
                 }
-                
+
                 # Process macro arguments - preserve spaces for text commands
                 cleaned_arguments = None
                 if node.arguments:
@@ -582,11 +691,22 @@ class Parser:
         elif isinstance(node, MacroNode):
             # Check if this is a text-preserving command
             text_preserving_commands = {
-                "text", "mathrm", "mathit", "mathbf", "mathsf", "mathtt", 
-                "mathcal", "mathscr", "mathfrak", "textbf", "textit", 
-                "textrm", "textsf", "texttt"
+                "text",
+                "mathrm",
+                "mathit",
+                "mathbf",
+                "mathsf",
+                "mathtt",
+                "mathcal",
+                "mathscr",
+                "mathfrak",
+                "textbf",
+                "textit",
+                "textrm",
+                "textsf",
+                "texttt",
             }
-            
+
             cleaned_arguments = None
             if node.arguments:
                 if node.name in text_preserving_commands:
@@ -594,7 +714,9 @@ class Parser:
                     cleaned_arguments = node.arguments
                 else:
                     # For other commands, recursively process
-                    cleaned_arguments = self._remove_spaces_from_math_nodes(node.arguments)
+                    cleaned_arguments = self._remove_spaces_from_math_nodes(
+                        node.arguments
+                    )
 
             cleaned_subscript = None
             cleaned_superscript = None

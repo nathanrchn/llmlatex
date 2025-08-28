@@ -1000,13 +1000,19 @@ class Formatter:
     ):
         self.formatters = {**DEFAULT_FORMATTERS, **(formatters or {})}
 
-    def _skip_empty_text_node(self, nodes: List[Node], node_type: str = "") -> List[Node]:
+    def _skip_empty_text_node(
+        self, nodes: List[Node], node_type: str = ""
+    ) -> List[Node]:
         return [
             node
             for node in nodes
             if not (
                 (isinstance(node, TextNode) and not node.content)
-                or (node_type == "math" and isinstance(node, MacroNode) and node.name == " ")
+                or (
+                    node_type == "math"
+                    and isinstance(node, MacroNode)
+                    and node.name == " "
+                )
             )
         ]
 
