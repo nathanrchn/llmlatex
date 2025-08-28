@@ -17,8 +17,9 @@ MATH_DISPLAY_PATTERN = r"\\?\[([^\]]+)\\?\]"
 MATH_DOUBLE_DOLLAR_PATTERN = r"\$\$([^$]+)\$\$"
 
 SKIP_MACROS = {
+    "def",
     "left",
-    "right", 
+    "right",
     "big",
     "Big",
     "bigg",
@@ -27,7 +28,7 @@ SKIP_MACROS = {
     "bigr",
     "Bigl",
     "Bigr",
-    "biggl", 
+    "biggl",
     "biggr",
     "Biggl",
     "Biggr",
@@ -39,7 +40,7 @@ SKIP_MACROS = {
     "Large",
     "LARGE",
     "huge",
-    "Huge"
+    "Huge",
 }
 
 
@@ -50,12 +51,12 @@ class Parser:
     def _find_valid_command_name(self, command_name: str) -> Optional[str]:
         if command_name in self.valid_commands:
             return command_name
-        
+
         for i in range(len(command_name) - 1, 0, -1):
             shortened_name = command_name[:i]
             if shortened_name in self.valid_commands:
                 return shortened_name
-        
+
         return None
 
     def parse(self, text: str) -> List[Node]:
@@ -255,26 +256,34 @@ class Parser:
         earliest = min(matches, key=lambda x: x[0])
         return earliest[1], earliest[2]
 
-    def _parse_macro(self, match: re.Match) -> Tuple[Optional[MacroNode], int]:
+    def _parse_macro(self, match: re.Match) -> Tuple[Optional[Node], int]:
         """
         Parse a macro and return the node and the actual consumed length.
-        
+
         Returns:
-            Tuple of (MacroNode or None, consumed_length)
+            Tuple of (MacroNode, TextNode, or None, consumed_length)
             where consumed_length is how many characters from the match were actually used.
+            Returns TextNode for special cases like newline followed by text.
         """
         groups = match.groups()
         if not groups or not groups[0]:
             return None, match.end()
 
         original_command_name = groups[0]
-        
+
+        if (
+            len(original_command_name) > 1
+            and original_command_name[0] == "n"
+            and original_command_name not in self.valid_commands
+        ):
+            return TextNode(f"\n {original_command_name[1:]}"), match.end()
+
         # Find the longest valid command name by progressively shortening
         command_name = self._find_valid_command_name(original_command_name)
-        
+
         if not command_name or command_name in SKIP_MACROS:
             return None, match.end()
-        
+
         # Calculate how much of the original match we actually consumed
         if len(command_name) < len(original_command_name):
             # We shortened the command, so we need to adjust the consumed length
@@ -282,7 +291,7 @@ class Parser:
             consumed_length = len(command_name) + 1  # +1 for the backslash
         else:
             consumed_length = match.end()
-            
+
         # For shortened commands, we only parse arguments from the valid command part
         if len(command_name) < len(original_command_name):
             # Reconstruct the match string for just the valid command
@@ -313,7 +322,7 @@ class Parser:
             optional_arguments=optional_args if optional_args else None,
             arguments=required_args if required_args else None,
         )
-        
+
         return node, consumed_length
 
     def _extract_brace_arguments(self, text: str) -> List[str]:
