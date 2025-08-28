@@ -1000,9 +1000,14 @@ class Formatter:
     ):
         self.formatters = {**DEFAULT_FORMATTERS, **(formatters or {})}
 
-    def _skip_empty_text_node(self, nodes: List[Node]) -> List[Node]:
+    def _skip_empty_text_node(self, nodes: List[Node], node_type: str = "") -> List[Node]:
         return [
-            node for node in nodes if not isinstance(node, TextNode) or node.content
+            node
+            for node in nodes
+            if not (
+                (isinstance(node, TextNode) and not node.content)
+                or (node_type == "math" and isinstance(node, MacroNode) and node.name == " ")
+            )
         ]
 
     def _add_spaces_to_content(self, content: str) -> str:
@@ -1081,7 +1086,7 @@ class Formatter:
         separator = " " if node.type == "math" and add_spaces else ""
         return separator.join(
             self._format_node(child, add_spaces)
-            for child in self._skip_empty_text_node(node.content)
+            for child in self._skip_empty_text_node(node.content, node.type)
         )
 
     def _format_node(self, node: Node, add_spaces: bool = False) -> str:
