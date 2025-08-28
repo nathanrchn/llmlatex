@@ -982,6 +982,8 @@ DEFAULT_FORMATTERS = {
     "vspace": _simple_format(" "),
     "restriction": _simple_format("↾"),
     "rtimes": _simple_format("⋊"),
+    # Handle backslash-space command (\ )
+    " ": _simple_format(" "),
 }
 
 

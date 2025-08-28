@@ -8,7 +8,7 @@ from .commands import COMMANDS
 from .nodes import Node, TextNode, MacroNode, MultiNode
 
 MACRO_PATTERN = (
-    r"\\([a-zA-Z]+|[{}$%&_#^~\\|])(?:\s*\[[^\]]*\]|\s*\{(?:[^{}]|\{[^{}]*\})*\})*"
+    r"\\([a-zA-Z]+|[{}$%&_#^~\\| ])(?:\s*\[[^\]]*\]|\s*\{(?:[^{}]|\{[^{}]*\})*\})*"
 )
 SUBSCRIPT_PATTERN = r"_\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
 SUPERSCRIPT_PATTERN = r"\^\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
@@ -47,6 +47,8 @@ SKIP_MACROS = {
 class Parser:
     def __init__(self):
         self.valid_commands = set(COMMANDS.split())
+        # Add space character manually since split() uses it as delimiter
+        self.valid_commands.add(" ")
 
     def _find_valid_command_name(self, command_name: str) -> Optional[str]:
         if command_name in self.valid_commands:
@@ -62,6 +64,8 @@ class Parser:
     def parse(self, text: str) -> List[Node]:
         if not text:
             return []
+
+        text = re.sub(r"\\+$", "", text.strip())
 
         nodes = []
         position = 0
@@ -467,7 +471,7 @@ class Parser:
         return updated_node, current_pos
 
     def _remove_spaces_from_math_nodes(self, nodes: List[Node]) -> List[Node]:
-        """Recursively remove spaces from text nodes within math content."""
+        """Recursively remove spaces from text nodes within math content, but preserve spaces in text commands."""
         processed_nodes = []
 
         for node in nodes:
@@ -498,12 +502,24 @@ class Parser:
                 )
 
             elif isinstance(node, MacroNode):
-                # Process macro arguments recursively
+                # Check if this is a text-preserving command
+                text_preserving_commands = {
+                    "text", "mathrm", "mathit", "mathbf", "mathsf", "mathtt", 
+                    "mathcal", "mathscr", "mathfrak", "textbf", "textit", 
+                    "textrm", "textsf", "texttt"
+                }
+                
+                # Process macro arguments - preserve spaces for text commands
                 cleaned_arguments = None
                 if node.arguments:
-                    cleaned_arguments = self._remove_spaces_from_math_nodes(
-                        node.arguments
-                    )
+                    if node.name in text_preserving_commands:
+                        # For text commands, don't remove spaces from arguments
+                        cleaned_arguments = node.arguments
+                    else:
+                        # For other commands, recursively process
+                        cleaned_arguments = self._remove_spaces_from_math_nodes(
+                            node.arguments
+                        )
 
                 # Process subscript and superscript if they exist
                 cleaned_subscript = None
@@ -542,7 +558,7 @@ class Parser:
         return processed_nodes
 
     def _remove_spaces_from_single_node(self, node: Node) -> Node:
-        """Helper to remove spaces from a single node."""
+        """Helper to remove spaces from a single node, preserving spaces in text commands."""
         if isinstance(node, TextNode):
             cleaned_content = node.content.replace(" ", "")
 
@@ -564,9 +580,21 @@ class Parser:
             )
 
         elif isinstance(node, MacroNode):
+            # Check if this is a text-preserving command
+            text_preserving_commands = {
+                "text", "mathrm", "mathit", "mathbf", "mathsf", "mathtt", 
+                "mathcal", "mathscr", "mathfrak", "textbf", "textit", 
+                "textrm", "textsf", "texttt"
+            }
+            
             cleaned_arguments = None
             if node.arguments:
-                cleaned_arguments = self._remove_spaces_from_math_nodes(node.arguments)
+                if node.name in text_preserving_commands:
+                    # For text commands, don't remove spaces from arguments
+                    cleaned_arguments = node.arguments
+                else:
+                    # For other commands, recursively process
+                    cleaned_arguments = self._remove_spaces_from_math_nodes(node.arguments)
 
             cleaned_subscript = None
             cleaned_superscript = None
