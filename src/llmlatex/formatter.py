@@ -57,7 +57,6 @@ def _needs_parentheses(formatted_string: str) -> bool:
 def _format_sqrt(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
-    # Handles \sqrt[n]{...}
     if node.optional_arguments:
         root_index = node.optional_arguments[0]
         if node.arguments and node.arguments[0] is not None:
@@ -68,7 +67,7 @@ def _format_sqrt(
                 return f"{formatted_arg}^(1/{root_index})"
         else:
             return f"x^(1/{root_index})"  # Placeholder
-    else:  # Handles \sqrt{...}
+    else:
         if node.arguments and node.arguments[0] is not None:
             formatted_arg = formatter._format_node(node.arguments[0], add_spaces)
             if _needs_parentheses(formatted_arg):
@@ -102,7 +101,6 @@ def _format_frac(
 def _format_genfrac(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
-    # genfrac{ldelim}{rdelim}{thick}{style}{num}{den} -> format as frac
     if node.arguments and len(node.arguments) >= 6:
         numerator = formatter._format_node(node.arguments[4], add_spaces)
         denominator = formatter._format_node(node.arguments[5], add_spaces)
@@ -219,7 +217,7 @@ def _format_pmod(
 def _format_binom(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
-    if node.arguments and len(node.arguments) >= 2:
+    if node.arguments and len(node.arguments) >= 2 and node.arguments[0] is not None and node.arguments[1] is not None:
         n = formatter._format_node(node.arguments[0], add_spaces)
         k = formatter._format_node(node.arguments[1], add_spaces)
         return f"C({n},{k})"
@@ -230,7 +228,7 @@ def _format_binom(
 def _format_stackrel(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
-    if node.arguments and len(node.arguments) >= 2:
+    if node.arguments and len(node.arguments) >= 2 and node.arguments[0] is not None and node.arguments[1] is not None:
         top = formatter._format_node(node.arguments[0], add_spaces)
         bottom = formatter._format_node(node.arguments[1], add_spaces)
         return f"{bottom}^{top}"
@@ -241,7 +239,7 @@ def _format_stackrel(
 def _format_overset(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
-    if node.arguments and len(node.arguments) >= 2:
+    if node.arguments and len(node.arguments) >= 2 and node.arguments[0] is not None and node.arguments[1] is not None:
         top = formatter._format_node(node.arguments[0], add_spaces)
         bottom = formatter._format_node(node.arguments[1], add_spaces)
         return f"{bottom}^{top}"
@@ -252,7 +250,7 @@ def _format_overset(
 def _format_underset(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
-    if node.arguments and len(node.arguments) >= 2:
+    if node.arguments and len(node.arguments) >= 2 and node.arguments[0] is not None and node.arguments[1] is not None:
         bottom = formatter._format_node(node.arguments[0], add_spaces)
         top = formatter._format_node(node.arguments[1], add_spaces)
         return f"{top}_{bottom}"
