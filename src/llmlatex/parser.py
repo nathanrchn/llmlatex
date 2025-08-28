@@ -15,6 +15,7 @@ MATH_INLINE_PATTERN = r"\$([^$]+)\$"
 MATH_DISPLAY_PATTERN = r"\\?\[([^\]]+)\\?\]"
 MATH_DOUBLE_DOLLAR_PATTERN = r"\$\$([^$]+)\$\$"
 ENVIRONMENT_PATTERN = r"\\begin\{([^}]+)\}(.*?)\\end\{\1\}"
+LEFT_RIGHT_PATTERN = r"\\(left|right)(.)"
 
 
 def _is_false_positive_math_inline(
@@ -111,8 +112,6 @@ def _is_false_positive_math_inline(
 
 SKIP_MACROS = {
     "def",
-    "left",
-    "right",
     "big",
     "Big",
     "bigg",
@@ -134,8 +133,8 @@ SKIP_MACROS = {
     "LARGE",
     "huge",
     "Huge",
-    "begin",  # Skip individual \begin macros since we handle environments separately
-    "end",  # Skip individual \end macros since we handle environments separately
+    "begin",
+    "end",
 }
 
 
@@ -286,6 +285,17 @@ class Parser:
                     nodes.append(updated_node)
                     position = new_position
                     continue
+            elif match_type == "left_right":
+                node = self._parse_left_right_node(next_match)
+                if node:
+                    # Check for subscripts and superscripts after left/right commands too
+                    new_position = position + next_match.end()
+                    updated_node, new_position = self._parse_scripts(
+                        node, text, new_position
+                    )
+                    nodes.append(updated_node)
+                    position = new_position
+                    continue
             elif match_type == "environment":
                 node = self._parse_environment_node(next_match)
                 if node:
@@ -318,6 +328,12 @@ class Parser:
                     environment_match,
                     "environment",
                 )
+            )
+
+        left_right_match = re.search(LEFT_RIGHT_PATTERN, search_text)
+        if left_right_match:
+            matches.append(
+                (start_pos + left_right_match.start(), left_right_match, "left_right")
             )
 
         macro_match = re.search(MACRO_PATTERN, search_text)
@@ -815,6 +831,23 @@ class Parser:
             content_nodes = []
 
         return EnvironmentNode(name=env_name, content=content_nodes)
+
+    def _parse_left_right_node(self, match: re.Match) -> Optional[MacroNode]:
+        groups = match.groups()
+        if not groups or len(groups) < 2:
+            return None
+
+        command_name = groups[0]  # "left" or "right"
+        delimiter = groups[1]     # the delimiter character
+
+        # Create a text node for the delimiter
+        delimiter_node = TextNode(content=delimiter)
+
+        return MacroNode(
+            name=command_name,
+            arguments=[delimiter_node],
+            optional_arguments=None,
+        )
 
 
 def _collect_macro_names(node: Node) -> set[str]:

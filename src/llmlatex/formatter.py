@@ -60,7 +60,7 @@ def _format_sqrt(
     # Handles \sqrt[n]{...}
     if node.optional_arguments:
         root_index = node.optional_arguments[0]
-        if node.arguments:
+        if node.arguments and node.arguments[0] is not None:
             formatted_arg = formatter._format_node(node.arguments[0], add_spaces)
             if _needs_parentheses(formatted_arg):
                 return f"({formatted_arg})^(1/{root_index})"
@@ -69,7 +69,7 @@ def _format_sqrt(
         else:
             return f"x^(1/{root_index})"  # Placeholder
     else:  # Handles \sqrt{...}
-        if node.arguments:
+        if node.arguments and node.arguments[0] is not None:
             formatted_arg = formatter._format_node(node.arguments[0], add_spaces)
             if _needs_parentheses(formatted_arg):
                 return f"√({formatted_arg})"
@@ -128,7 +128,7 @@ def _format_genfrac(
 def _format_font_style(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
-    if node.arguments:
+    if node.arguments and node.arguments[0] is not None:
         return formatter._format_node(node.arguments[0], add_spaces)
     else:
         return ""
@@ -137,7 +137,7 @@ def _format_font_style(
 def _format_bold(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
-    if node.arguments:
+    if node.arguments and node.arguments[0] is not None:
         content = formatter._format_node(node.arguments[0], add_spaces)
         return f"**{content}**"
     else:
@@ -147,7 +147,7 @@ def _format_bold(
 def _format_italic(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
-    if node.arguments:
+    if node.arguments and node.arguments[0] is not None:
         content = formatter._format_node(node.arguments[0], add_spaces)
         return f"_{content}_"
     else:
@@ -161,7 +161,7 @@ def _format_ceil_floor(
     rdelim: str,
     add_spaces: bool = False,
 ) -> str:
-    if node.arguments:
+    if node.arguments and node.arguments[0] is not None:
         content = formatter._format_node(node.arguments[0], add_spaces)
         return f"{ldelim}{content}{rdelim}"
     else:
@@ -171,7 +171,7 @@ def _format_ceil_floor(
 def _format_boxed(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
-    if node.arguments:
+    if node.arguments and node.arguments[0] is not None:
         content = formatter._format_node(node.arguments[0], add_spaces)
         return f"[{content}]"
     else:
@@ -181,7 +181,7 @@ def _format_boxed(
 def _format_accent(
     node: MacroNode, formatter: Formatter, accent: str, add_spaces: bool = False
 ) -> str:
-    if node.arguments:
+    if node.arguments and node.arguments[0] is not None:
         content = formatter._format_node(node.arguments[0], add_spaces)
         return f"{content}{accent}"
     else:
@@ -191,7 +191,7 @@ def _format_accent(
 def _format_cancel(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
-    if node.arguments:
+    if node.arguments and node.arguments[0] is not None:
         content = formatter._format_node(node.arguments[0], add_spaces)
         return f"~~{content}~~"  # Strikethrough for cancel
     else:
@@ -199,7 +199,7 @@ def _format_cancel(
 
 
 def _format_mod(node: MacroNode, formatter: Formatter, add_spaces: bool = False) -> str:
-    if node.arguments:
+    if node.arguments and node.arguments[0] is not None:
         content = formatter._format_node(node.arguments[0], add_spaces)
         return f" mod {content}"
     else:
@@ -209,7 +209,7 @@ def _format_mod(node: MacroNode, formatter: Formatter, add_spaces: bool = False)
 def _format_pmod(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
-    if node.arguments:
+    if node.arguments and node.arguments[0] is not None:
         content = formatter._format_node(node.arguments[0], add_spaces)
         return f" (mod {content})"
     else:
@@ -225,17 +225,6 @@ def _format_binom(
         return f"C({n},{k})"
     else:
         return ""
-
-
-def _format_super_sub(
-    node: MacroNode, formatter: Formatter, base_formatter, add_spaces: bool = False
-) -> str:
-    base = base_formatter(node, formatter, add_spaces)
-    if node.superscript:
-        base += f"^{formatter._format_node(node.superscript, add_spaces)}"
-    if node.subscript:
-        base += f"_{formatter._format_node(node.subscript, add_spaces)}"
-    return base
 
 
 def _format_stackrel(
@@ -274,43 +263,42 @@ def _format_underset(
 def _format_phantom(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
-    if node.arguments:
+    if node.arguments and node.arguments[0] is not None:
         content = formatter._format_node(node.arguments[0], add_spaces)
         return " " * len(content)
     else:
         return ""
 
 
+def _format_left_right(
+    node: MacroNode, formatter: Formatter, add_spaces: bool = False
+) -> str:
+    if node.arguments and node.arguments[0] is not None:
+        delimiter = formatter._format_node(node.arguments[0], add_spaces)
+        return delimiter
+    else:
+        return ""
+
+
 def _format_environment(env_name: str, content: str) -> str:
-    """Format environment content based on environment type."""
-    # Clean up the content first
-    # Remove trailing \\ that appear at the end of lines (not followed by content)
     cleaned_content = re.sub(r"\\\\\s*$", "", content.strip())
     cleaned_content = re.sub(
         r"\\\\\s*(?=\s*$)", "", cleaned_content, flags=re.MULTILINE
     )
 
-    # Replace remaining \\ with newlines
     cleaned_content = cleaned_content.replace("\\\\", "\n")
 
-    # Handle & symbols based on environment type
     if env_name in {"matrix", "pmatrix", "bmatrix", "vmatrix", "Vmatrix", "array"}:
-        # For matrix-like environments, replace & with single space and clean up multiple spaces
         cleaned_content = re.sub(r"\s*&\s*", " ", cleaned_content)
     elif env_name in {"align", "align*", "aligned"}:
-        # For alignment environments, & marks alignment points, replace with spaces
         cleaned_content = re.sub(r"\s*&\s*", " ", cleaned_content)
     elif env_name in {"cases"}:
-        # For cases environment, & separates condition from result
         cleaned_content = re.sub(r"\s*&\s*", " if ", cleaned_content)
     else:
-        # For other environments, remove & entirely as they're usually unnecessary
         cleaned_content = re.sub(r"\s*&\s*", " ", cleaned_content)
 
-    # Clean up multiple spaces and trim
     cleaned_content = re.sub(r" +", " ", cleaned_content).strip()
 
-    # Apply environment-specific delimiters
     if env_name == "pmatrix":
         return f"({cleaned_content})"
     elif env_name == "bmatrix":
@@ -322,7 +310,6 @@ def _format_environment(env_name: str, content: str) -> str:
     elif env_name == "cases":
         return f"{{{cleaned_content}}}"
     else:
-        # Default formatting for other environments (matrix, align, equation, etc.)
         return cleaned_content
 
 
@@ -603,6 +590,8 @@ DEFAULT_FORMATTERS = {
     "rVert": _simple_format("‖"),
     "vert": _simple_format("|"),
     "Vert": _simple_format("‖"),
+    "left": _format_left_right,
+    "right": _format_left_right,
     "brace": _simple_format("{...}"),
     "brack": _simple_format("[...]"),
     "lbrace": _simple_format("{"),
