@@ -134,6 +134,8 @@ SKIP_MACROS = {
     "LARGE",
     "huge",
     "Huge",
+    "begin",  # Skip individual \begin macros since we handle environments separately
+    "end",  # Skip individual \end macros since we handle environments separately
 }
 
 
@@ -306,6 +308,18 @@ class Parser:
         matches = []
         search_text = text[start_pos:]
 
+        # Look for environments FIRST with DOTALL flag to handle multiline content
+        # This needs higher priority than individual macros to prevent \begin from being parsed as a separate macro
+        environment_match = re.search(ENVIRONMENT_PATTERN, search_text, re.DOTALL)
+        if environment_match:
+            matches.append(
+                (
+                    start_pos + environment_match.start(),
+                    environment_match,
+                    "environment",
+                )
+            )
+
         macro_match = re.search(MACRO_PATTERN, search_text)
         if macro_match:
             matches.append((start_pos + macro_match.start(), macro_match, "macro"))
@@ -361,17 +375,6 @@ class Parser:
                     start_pos + math_double_match.start(),
                     math_double_match,
                     "math_double_dollar",
-                )
-            )
-
-        # Look for environments with DOTALL flag to handle multiline content
-        environment_match = re.search(ENVIRONMENT_PATTERN, search_text, re.DOTALL)
-        if environment_match:
-            matches.append(
-                (
-                    start_pos + environment_match.start(),
-                    environment_match,
-                    "environment",
                 )
             )
 

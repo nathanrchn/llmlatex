@@ -284,23 +284,32 @@ def _format_phantom(
 def _format_environment(env_name: str, content: str) -> str:
     """Format environment content based on environment type."""
     # Clean up the content first
-    # Replace \\ with newlines
-    cleaned_content = content.replace("\\\\", "\n")
-    
+    # Remove trailing \\ that appear at the end of lines (not followed by content)
+    cleaned_content = re.sub(r"\\\\\s*$", "", content.strip())
+    cleaned_content = re.sub(
+        r"\\\\\s*(?=\s*$)", "", cleaned_content, flags=re.MULTILINE
+    )
+
+    # Replace remaining \\ with newlines
+    cleaned_content = cleaned_content.replace("\\\\", "\n")
+
     # Handle & symbols based on environment type
     if env_name in {"matrix", "pmatrix", "bmatrix", "vmatrix", "Vmatrix", "array"}:
-        # For matrix-like environments, replace & with spaces or tabs for readability
-        cleaned_content = cleaned_content.replace("&", "  ")
+        # For matrix-like environments, replace & with single space and clean up multiple spaces
+        cleaned_content = re.sub(r"\s*&\s*", " ", cleaned_content)
     elif env_name in {"align", "align*", "aligned"}:
         # For alignment environments, & marks alignment points, replace with spaces
-        cleaned_content = cleaned_content.replace("&", " ")
+        cleaned_content = re.sub(r"\s*&\s*", " ", cleaned_content)
     elif env_name in {"cases"}:
         # For cases environment, & separates condition from result
-        cleaned_content = cleaned_content.replace("&", " if ")
+        cleaned_content = re.sub(r"\s*&\s*", " if ", cleaned_content)
     else:
         # For other environments, remove & entirely as they're usually unnecessary
-        cleaned_content = cleaned_content.replace("&", "")
-    
+        cleaned_content = re.sub(r"\s*&\s*", " ", cleaned_content)
+
+    # Clean up multiple spaces and trim
+    cleaned_content = re.sub(r" +", " ", cleaned_content).strip()
+
     # Apply environment-specific delimiters
     if env_name == "pmatrix":
         return f"({cleaned_content})"
