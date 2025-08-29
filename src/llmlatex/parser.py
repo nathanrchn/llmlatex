@@ -269,14 +269,16 @@ class Parser:
         math_inline_match = re.search(MATH_INLINE_PATTERN, search_text)
         if math_inline_match:
             content = math_inline_match.group(1)
-
-            matches.append(
-                (
-                    start_pos + math_inline_match.start(),
-                    math_inline_match,
-                    "math_inline",
+            
+            # Validate that this is a proper LaTeX equation, not a false positive
+            if self._is_valid_math_inline(math_inline_match, search_text):
+                matches.append(
+                    (
+                        start_pos + math_inline_match.start(),
+                        math_inline_match,
+                        "math_inline",
+                    )
                 )
-            )
 
         math_inline_paren_match = re.search(MATH_INLINE_PAREN_PATTERN, search_text)
         if math_inline_paren_match:
@@ -300,13 +302,15 @@ class Parser:
 
         math_double_match = re.search(MATH_DOUBLE_DOLLAR_PATTERN, search_text)
         if math_double_match:
-            matches.append(
-                (
-                    start_pos + math_double_match.start(),
-                    math_double_match,
-                    "math_double_dollar",
+            # Validate that this is a proper LaTeX display equation
+            if self._is_valid_math_double_dollar(math_double_match):
+                matches.append(
+                    (
+                        start_pos + math_double_match.start(),
+                        math_double_match,
+                        "math_double_dollar",
+                    )
                 )
-            )
 
         if not matches:
             return None, None
@@ -762,6 +766,43 @@ class Parser:
             arguments=[delimiter_node],
             optional_arguments=None,
         )
+
+    def _is_valid_math_inline(self, match: re.Match, search_text: str) -> bool:
+        """
+        Validate single $ math delimiters according to LaTeX rules:
+        - Opening $ must have a non-space character immediately to its right
+        - Closing $ must have a non-space character immediately to its left  
+        - Closing $ must not be followed immediately by a digit
+        """
+        content = match.group(1)
+        match_end = match.end()
+        
+        # Check if opening $ has non-space character immediately to its right
+        if not content or content[0].isspace():
+            return False
+            
+        # Check if closing $ has non-space character immediately to its left
+        if content[-1].isspace():
+            return False
+            
+        # Check if closing $ is followed immediately by a digit
+        if match_end < len(search_text) and search_text[match_end].isdigit():
+            return False
+            
+        return True
+    
+    def _is_valid_math_double_dollar(self, match: re.Match) -> bool:
+        """
+        Validate double $$ math delimiters according to LaTeX rules:
+        - No blank lines between opening and closing $$ delimiters
+        """
+        content = match.group(1)
+        
+        # Check for blank lines (two consecutive newlines)
+        if '\n\n' in content:
+            return False
+            
+        return True
 
 
 def _collect_macro_names(node: Node) -> set[str]:
