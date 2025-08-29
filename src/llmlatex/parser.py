@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import textstat
 from typing import List, Set, Tuple, Optional
 
 from .commands import COMMANDS
@@ -12,102 +13,11 @@ MACRO_PATTERN = (
 SUBSCRIPT_PATTERN = r"_\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
 SUPERSCRIPT_PATTERN = r"\^\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
 MATH_INLINE_PATTERN = r"\$([^$]+)\$"
+MATH_INLINE_PAREN_PATTERN = r"\\\(([^)]+)\\\)"
 MATH_DISPLAY_PATTERN = r"\\?\[([^\]]+)\\?\]"
 MATH_DOUBLE_DOLLAR_PATTERN = r"\$\$([^$]+)\$\$"
 ENVIRONMENT_PATTERN = r"\\begin\{([^}]+)\}(.*?)\\end\{\1\}"
 LEFT_RIGHT_PATTERN = r"\\(left|right)(.)"
-
-
-def _is_false_positive_math_inline(
-    content: str, full_text: str, match_start: int, match_end: int
-) -> bool:
-    content = content.strip()
-
-    if re.match(r"^\d+(\.\d{1,2})?$", content):
-        return True
-
-    if re.match(r"^\d+(\.\d{1,2})?[.,;!?]", content):
-        return True
-
-    context_before = full_text[max(0, match_start - 20) : match_start]
-    context_after = full_text[match_end : min(len(full_text), match_end + 20)]
-
-    currency_words = {
-        "cost",
-        "costs",
-        "price",
-        "dollar",
-        "dollars",
-        "cent",
-        "cents",
-        "pay",
-        "paid",
-        "spend",
-        "spent",
-        "buy",
-        "bought",
-        "sell",
-        "sold",
-        "worth",
-        "value",
-        "money",
-        "cash",
-        "bill",
-        "total",
-        "amount",
-    }
-
-    context_text = (context_before + " " + context_after).lower()
-    if any(word in context_text for word in currency_words):
-        if re.match(r"^\d+(\.\d{1,2})?$", content):
-            return True
-
-    math_indicators = {
-        "+",
-        "-",
-        "*",
-        "/",
-        "=",
-        "<",
-        ">",
-        "\\",
-        "^",
-        "_",
-        "frac",
-        "sqrt",
-        "sum",
-        "int",
-        "lim",
-        "sin",
-        "cos",
-        "tan",
-        "log",
-        "ln",
-        "exp",
-        "alpha",
-        "beta",
-        "gamma",
-        "delta",
-        "theta",
-        "pi",
-        "sigma",
-        "infty",
-    }
-
-    if any(indicator in content for indicator in math_indicators):
-        return False
-
-    if re.search(r"[a-zA-Z]", content):
-        if re.match(r"^\d+(\.\d{1,2})?$", content) and any(
-            word in context_text for word in currency_words
-        ):
-            return True
-        return False
-
-    if re.match(r"^\d+(\.\d{1,2})?$", content):
-        return True
-
-    return False
 
 
 SKIP_MACROS = {
@@ -274,7 +184,7 @@ class Parser:
                     else:
                         # Can't attach to this node type, put it back and continue
                         nodes.append(prev_node)
-            elif match_type in ["math_inline", "math_display", "math_double_dollar"]:
+            elif match_type in ["math_inline", "math_inline_paren", "math_display", "math_double_dollar"]:
                 node = self._parse_multi_node(next_match)
                 if node:
                     # Check for subscripts and superscripts after math blocks too
@@ -360,12 +270,8 @@ class Parser:
         math_inline_match = re.search(MATH_INLINE_PATTERN, search_text)
         if math_inline_match:
             content = math_inline_match.group(1)
-            match_start_in_full_text = start_pos + math_inline_match.start()
-            match_end_in_full_text = start_pos + math_inline_match.end()
 
-            if not _is_false_positive_math_inline(
-                content, text, match_start_in_full_text, match_end_in_full_text
-            ):
+            if textstat.flesch_kincaid_grade(content) <= 0.0:
                 matches.append(
                     (
                         start_pos + math_inline_match.start(),
@@ -373,6 +279,16 @@ class Parser:
                         "math_inline",
                     )
                 )
+
+        math_inline_paren_match = re.search(MATH_INLINE_PAREN_PATTERN, search_text)
+        if math_inline_paren_match:
+            matches.append(
+                (
+                    start_pos + math_inline_paren_match.start(),
+                    math_inline_paren_match,
+                    "math_inline_paren",
+                )
+            )
 
         math_display_match = re.search(MATH_DISPLAY_PATTERN, search_text)
         if math_display_match:
