@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import textstat
 from typing import List, Set, Tuple, Optional
 
 from .commands import COMMANDS
@@ -271,14 +270,13 @@ class Parser:
         if math_inline_match:
             content = math_inline_match.group(1)
 
-            if textstat.flesch_kincaid_grade(content) <= 2.0:
-                matches.append(
-                    (
-                        start_pos + math_inline_match.start(),
-                        math_inline_match,
-                        "math_inline",
-                    )
+            matches.append(
+                (
+                    start_pos + math_inline_match.start(),
+                    math_inline_match,
+                    "math_inline",
                 )
+            )
 
         math_inline_paren_match = re.search(MATH_INLINE_PAREN_PATTERN, search_text)
         if math_inline_paren_match:
