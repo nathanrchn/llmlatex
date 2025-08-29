@@ -271,7 +271,7 @@ class Parser:
         if math_inline_match:
             content = math_inline_match.group(1)
 
-            if textstat.flesch_kincaid_grade(content) <= 0.0:
+            if textstat.flesch_kincaid_grade(content) <= 2.0:
                 matches.append(
                     (
                         start_pos + math_inline_match.start(),
