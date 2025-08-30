@@ -75,7 +75,7 @@ def _format_sqrt(
                     return f"({formatted_arg}){power_character}{power_sh}"
                 else:
                     return f"{formatted_arg}{power_character}{power_sh}"
-            elif fraq_variant == 1:
+            else:
                 if _needs_parentheses(formatted_arg):
                     return f"({formatted_arg})^{power_character}(1/{root_index})"
                 else:
