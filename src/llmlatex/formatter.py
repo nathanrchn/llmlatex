@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, Callable, Optional, List
+import random
+from typing import Dict, Callable, Optional, List, Union
 
 from .nodes import Node, TextNode, MacroNode, MultiNode, EnvironmentNode
 
@@ -15,11 +16,14 @@ def _clean_parentheses_spacing(text: str) -> str:
     return text
 
 
-def _simple_format(text: str) -> Callable[[MacroNode, Formatter, bool], str]:
+def _simple_format(text: Union[str, List[str]], weights: Optional[List[float]] = None) -> Callable[[MacroNode, Formatter, bool], str]:
     def _simple_format_wrapper(
         node: MacroNode, formatter: Formatter, add_spaces: bool = False
     ) -> str:
-        return text
+        if isinstance(text, str):
+            return text
+        else:
+            return random.choices(text, weights=weights or [1] * len(text))[0]
 
     return _simple_format_wrapper
 
@@ -268,6 +272,16 @@ def _format_phantom(
         return ""
 
 
+def _format_textsuperscript(
+    node: MacroNode, formatter: Formatter, add_spaces: bool = False
+) -> str:
+    if node.arguments and node.arguments[0] is not None:
+        content = formatter._format_node(node.arguments[0], add_spaces)
+        return formatter._format_superscript(content)
+    else:
+        return ""
+
+
 def _format_left_right(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
@@ -320,51 +334,51 @@ DEFAULT_FORMATTERS = {
     "cfrac": _format_frac,
     "genfrac": _format_genfrac,
     # Greek letters (lowercase)
-    "alpha": _simple_format("α"),
-    "beta": _simple_format("β"),
-    "gamma": _simple_format("γ"),
-    "delta": _simple_format("δ"),
-    "epsilon": _simple_format("ε"),
-    "varepsilon": _simple_format("ε"),
-    "zeta": _simple_format("ζ"),
-    "eta": _simple_format("η"),
-    "theta": _simple_format("θ"),
-    "vartheta": _simple_format("ϑ"),
-    "iota": _simple_format("ι"),
-    "kappa": _simple_format("κ"),
-    "varkappa": _simple_format("ϰ"),
-    "lambda": _simple_format("λ"),
-    "mu": _simple_format("μ"),
-    "nu": _simple_format("ν"),
-    "xi": _simple_format("ξ"),
-    "pi": _simple_format("π"),
-    "varpi": _simple_format("ϖ"),
-    "rho": _simple_format("ρ"),
-    "varrho": _simple_format("ϱ"),
-    "sigma": _simple_format("σ"),
-    "varsigma": _simple_format("ς"),
-    "tau": _simple_format("τ"),
-    "upsilon": _simple_format("υ"),
-    "phi": _simple_format("φ"),
-    "varphi": _simple_format("φ"),
-    "chi": _simple_format("χ"),
-    "psi": _simple_format("ψ"),
-    "omega": _simple_format("ω"),
+    "alpha": _simple_format(["α", "alpha"], weights=[0.5, 0.5]),
+    "beta": _simple_format(["β", "beta"], weights=[0.5, 0.5]),
+    "gamma": _simple_format(["γ", "gamma"], weights=[0.5, 0.5]),
+    "delta": _simple_format(["δ", "delta"], weights=[0.5, 0.5]),
+    "epsilon": _simple_format(["ε", "epsilon"], weights=[0.5, 0.5]),
+    "varepsilon": _simple_format(["ε", "epsilon"], weights=[0.5, 0.5]),
+    "zeta": _simple_format(["ζ", "zeta"], weights=[0.5, 0.5]),
+    "eta": _simple_format(["η", "eta"], weights=[0.5, 0.5]),
+    "theta": _simple_format(["θ", "theta"], weights=[0.5, 0.5]),
+    "vartheta": _simple_format(["ϑ", "vartheta"], weights=[0.5, 0.5]),
+    "iota": _simple_format(["ι", "iota"], weights=[0.5, 0.5]),
+    "kappa": _simple_format(["κ", "kappa"], weights=[0.5, 0.5]),
+    "varkappa": _simple_format(["ϰ", "varkappa"], weights=[0.5, 0.5]),
+    "lambda": _simple_format(["λ", "lambda"], weights=[0.5, 0.5]),
+    "mu": _simple_format(["μ", "mu"], weights=[0.5, 0.5]),
+    "nu": _simple_format(["ν", "nu"], weights=[0.5, 0.5]),
+    "xi": _simple_format(["ξ", "xi"], weights=[0.5, 0.5]),
+    "pi": _simple_format(["π", "pi"], weights=[0.5, 0.5]),
+    "varpi": _simple_format(["ϖ", "varpi"], weights=[0.5, 0.5]),
+    "rho": _simple_format(["ρ", "rho"], weights=[0.5, 0.5]),
+    "varrho": _simple_format(["ϱ", "varrho"], weights=[0.5, 0.5]),
+    "sigma": _simple_format(["σ", "sigma"], weights=[0.5, 0.5]),
+    "varsigma": _simple_format(["ς", "varsigma"], weights=[0.5, 0.5]),
+    "tau": _simple_format(["τ", "tau"], weights=[0.5, 0.5]),
+    "upsilon": _simple_format(["υ", "upsilon"], weights=[0.5, 0.5]),
+    "phi": _simple_format(["φ", "phi"], weights=[0.5, 0.5]),
+    "varphi": _simple_format(["φ", "varphi"], weights=[0.5, 0.5]),
+    "chi": _simple_format(["χ", "chi"], weights=[0.5, 0.5]),
+    "psi": _simple_format(["ψ", "psi"], weights=[0.5, 0.5]),
+    "omega": _simple_format(["ω", "omega"], weights=[0.5, 0.5]),
     # Greek letters (uppercase)
-    "Gamma": _simple_format("Γ"),
-    "varGamma": _simple_format("Γ"),
-    "Delta": _simple_format("Δ"),
-    "varDelta": _simple_format("Δ"),
-    "Theta": _simple_format("Θ"),
-    "Lambda": _simple_format("Λ"),
-    "Xi": _simple_format("Ξ"),
-    "Pi": _simple_format("Π"),
-    "Sigma": _simple_format("Σ"),
-    "Upsilon": _simple_format("Υ"),
-    "Phi": _simple_format("Φ"),
-    "Psi": _simple_format("Ψ"),
-    "Omega": _simple_format("Ω"),
-    "Beta": _simple_format("B"),  # No standard capital Beta symbol in math
+    "Gamma": _simple_format(["Γ", "Gamma"], weights=[0.5, 0.5]),
+    "varGamma": _simple_format(["Γ", "Gamma"], weights=[0.5, 0.5]),
+    "Delta": _simple_format(["Δ", "Delta"], weights=[0.5, 0.5]),
+    "varDelta": _simple_format(["Δ", "Delta"], weights=[0.5, 0.5]),
+    "Theta": _simple_format(["Θ", "Theta"], weights=[0.5, 0.5]),
+    "Lambda": _simple_format(["Λ", "Lambda"], weights=[0.5, 0.5]),
+    "Xi": _simple_format(["Ξ", "Xi"], weights=[0.5, 0.5]),
+    "Pi": _simple_format(["Π", "Pi"], weights=[0.5, 0.5]),
+    "Sigma": _simple_format(["Σ", "Sigma"], weights=[0.5, 0.5]),
+    "Upsilon": _simple_format(["Υ", "Upsilon"], weights=[0.5, 0.5]),
+    "Phi": _simple_format(["Φ", "Phi"], weights=[0.5, 0.5]),
+    "Psi": _simple_format(["Ψ", "Psi"], weights=[0.5, 0.5]),
+    "Omega": _simple_format(["Ω", "Omega"], weights=[0.5, 0.5]),
+    "Beta": _simple_format(["B", "Beta"], weights=[0.5, 0.5]),  # No standard capital Beta symbol in math
     # Comparison operators
     "lt": _simple_format("<"),
     "gt": _simple_format(">"),
@@ -385,11 +399,11 @@ DEFAULT_FORMATTERS = {
     "eq": _simple_format("="),
     "neq": _simple_format("≠"),
     "ne": _simple_format("≠"),
-    "equiv": _simple_format("≡"),
+    "equiv": _simple_format(["≡", "==="], weights=[0.5, 0.5]),
     "ncong": _simple_format("≇"),
-    "approx": _simple_format("≈"),
-    "approxeq": _simple_format("≈"),
-    "sim": _simple_format("∼"),
+    "approx": _simple_format(["≈", "~="], weights=[0.5, 0.5]),
+    "approxeq": _simple_format(["≈", "~="], weights=[0.5, 0.5]),
+    "sim": _simple_format(["∼", "~"], weights=[0.5, 0.5]),
     "nsim": _simple_format("≁"),
     "simeq": _simple_format("≃"),
     "cong": _simple_format("≅"),
@@ -429,8 +443,8 @@ DEFAULT_FORMATTERS = {
     "ni": _simple_format("∋"),
     "subset": _simple_format("⊂"),
     "supset": _simple_format("⊃"),
-    "subseteq": _simple_format("⊆"),
-    "supseteq": _simple_format("⊇"),
+    "subseteq": _simple_format(["⊆", "subset="], weights=[0.5, 0.5]),
+    "supseteq": _simple_format(["⊇", "supset="], weights=[0.5, 0.5]),
     "nsubset": _simple_format("⊄"),
     "nsubseteq": _simple_format("⊈"),
     "nsupseteq": _simple_format("⊉"),
@@ -473,7 +487,7 @@ DEFAULT_FORMATTERS = {
     "bigwedge": _simple_format("⋀"),
     "implies": _simple_format("⇒"),
     "impliedby": _simple_format("⇐"),
-    "iff": _simple_format("⇔"),
+    "iff": _simple_format(["⇔", "<=>"], weights=[0.5, 0.5]),
     "therefore": _simple_format("∴"),
     "because": _simple_format("∵"),
     "top": _simple_format("⊤"),
@@ -507,7 +521,7 @@ DEFAULT_FORMATTERS = {
     "searrow": _simple_format("↘"),
     "swarrow": _simple_format("↙"),
     "nwarrow": _simple_format("↖"),
-    "mapsto": _simple_format("↦"),
+    "mapsto": _simple_format(["↦", "->"], weights=[0.5, 0.5]),
     "longmapsto": _simple_format("⟼"),
     "hookleftarrow": _simple_format("↩"),
     "hookrightarrow": _simple_format("↪"),
@@ -536,10 +550,10 @@ DEFAULT_FORMATTERS = {
     "xrightarrow": lambda n, f, a=False: _format_accent(n, f, "→", a),
     "xlongequal": lambda n, f, a=False: _format_accent(n, f, "=", a),
     # Binary operators
-    "pm": _simple_format("±"),
-    "mp": _simple_format("∓"),
-    "times": _simple_format("×"),
-    "div": _simple_format("÷"),
+    "pm": _simple_format(["±", "+/-"], weights=[0.5, 0.5]),
+    "mp": _simple_format(["∓", "-/"], weights=[0.5, 0.5]),
+    "times": _simple_format(["×", "*"], weights=[0.2, 0.8]),
+    "div": _simple_format(["÷", "/"], weights=[0.2, 0.8]),
     "cdot": _simple_format("·"),
     "cdotp": _simple_format("·"),
     "centerdot": _simple_format("·"),
@@ -580,8 +594,8 @@ DEFAULT_FORMATTERS = {
     "rfloor": _simple_format("⌋"),
     "lceil": lambda n, f, a=False: _format_ceil_floor(n, f, "⌈", "⌉", a),
     "rceil": lambda n, f, a=False: _format_ceil_floor(n, f, "⌈", "⌉", a),
-    "langle": _simple_format("⟨"),
-    "rangle": _simple_format("⟩"),
+    "langle": _simple_format(["⟨", "<"], weights=[0.5, 0.5]),
+    "rangle": _simple_format(["⟩", ">"], weights=[0.5, 0.5]),
     "lvert": _simple_format("|"),
     "rvert": _simple_format("|"),
     "lVert": _simple_format("‖"),
@@ -644,7 +658,7 @@ DEFAULT_FORMATTERS = {
     "pmod": _format_pmod,
     "bmod": _format_mod,
     # Special symbols
-    "infty": _simple_format("∞"),
+    "infty": _simple_format(["∞", "infinity"], weights=[0.5, 0.5]),
     "partial": _simple_format("∂"),
     "nabla": _simple_format("∇"),
     "aleph": _simple_format("ℵ"),
@@ -718,14 +732,14 @@ DEFAULT_FORMATTERS = {
     "frown": _simple_format("⌢"),
     # Dots and spacing
     "cdots": _simple_format("⋯"),
-    "ldots": _simple_format("…"),
+    "ldots": _simple_format(["…", "..."], weights=[0.5, 0.5]),
     "vdots": _simple_format("⋮"),
     "ddots": _simple_format("⋱"),
     "iddots": _simple_format("⋰"),
-    "dots": _simple_format("…"),
-    "hdots": _simple_format("…"),
+    "dots": _simple_format(["…", "..."], weights=[0.5, 0.5]),
+    "hdots": _simple_format(["…", "..."], weights=[0.5, 0.5]),
     "dotsb": _simple_format("⋯"),
-    "dotsc": _simple_format("…"),
+    "dotsc": _simple_format(["…", "..."], weights=[0.5, 0.5]),
     "dotsm": _simple_format("⋯"),
     "colon": _simple_format(":"),
     "quad": _simple_format("  "),
@@ -810,7 +824,7 @@ DEFAULT_FORMATTERS = {
     "cal": _simple_format(""),
     "scr": _simple_format(""),
     "frak": _simple_format(""),
-    "textsuperscript": lambda n, f, a=False: f"^{_format_font_style(n,f,a)}",
+    "textsuperscript": _format_textsuperscript,
     "textsubscript": lambda n, f, a=False: f"_{_format_font_style(n,f,a)}",
     "textcircled": _format_font_style,
     "LaTeX": _simple_format("LaTeX"),
@@ -1006,6 +1020,7 @@ DEFAULT_FORMATTERS = {
 SPECIAL_SUPERSCRIPT_FORMAT = {
     "∘": "°",
     "′": "′",
+    "'": "′",
     "(": "⁽",
     ")": "⁾",
     "+": "⁺",
@@ -1095,7 +1110,7 @@ class Formatter:
         i = 0
         result = []
 
-        no_space_before = {"(", "[", "{"}
+        no_space_before = {"(", "[", "{", "%"}
         no_space_after = {")", "]", "}"}
 
         while i < len(content):
@@ -1115,9 +1130,7 @@ class Formatter:
                     result.append(" ")
 
             elif char in no_space_before:
-                if result and result[-1] != " " and result[-1] not in BINARY_OPERATORS:
-                    if result[-1].isalnum():
-                        result.append(" ")
+                # Don't add spaces before parentheses, brackets, or braces
                 result.append(char)
 
             elif char in no_space_after:
@@ -1142,6 +1155,21 @@ class Formatter:
 
         return "".join(result)
 
+    def _format_superscript(self, superscript_content: str) -> str:
+        content = superscript_content.strip()
+        
+        if content in SPECIAL_SUPERSCRIPT_FORMAT:
+            return SPECIAL_SUPERSCRIPT_FORMAT[content]
+        
+        result = ""
+        for char in content:
+            if char in SPECIAL_SUPERSCRIPT_FORMAT:
+                result += SPECIAL_SUPERSCRIPT_FORMAT[char]
+            else:
+                return "^" + content
+        
+        return result
+
     def _format_text_node(self, node: TextNode, add_spaces: bool = False) -> str:
         output = node.content
         if add_spaces:
@@ -1151,10 +1179,7 @@ class Formatter:
             output += f"_{subscript}"
         if node.superscript:
             superscript = self._format_node(node.superscript, add_spaces)
-            if superscript in SPECIAL_SUPERSCRIPT_FORMAT:
-                output += SPECIAL_SUPERSCRIPT_FORMAT[superscript]
-            else:
-                output += "^" + superscript
+            output += self._format_superscript(superscript)
         return output
 
     def _format_macro_node(self, node: MacroNode, add_spaces: bool = False) -> str:
@@ -1189,7 +1214,7 @@ class Formatter:
             output += f"_{subscript}"
         if node.superscript:
             superscript = self._format_node(node.superscript, add_spaces)
-            output += f"^{superscript}"
+            output += self._format_superscript(superscript)
 
         return output
 
