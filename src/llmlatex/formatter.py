@@ -61,25 +61,50 @@ def _needs_parentheses(formatted_string: str) -> bool:
 def _format_sqrt(
     node: MacroNode, formatter: Formatter, add_spaces: bool = False
 ) -> str:
+    power_character = random.choice(["^", "**"])
+
     if node.optional_arguments:
         root_index = node.optional_arguments[0]
         if node.arguments and node.arguments[0] is not None:
             formatted_arg = formatter._format_node(node.arguments[0], add_spaces)
-            if _needs_parentheses(formatted_arg):
-                return f"({formatted_arg})^(1/{root_index})"
-            else:
-                return f"{formatted_arg}^(1/{root_index})"
+            fraq_variant = random.choice([0, 1])
+
+            power_sh = str(1 / root_index)
+            if fraq_variant == 0 and len(power_sh.split(".")[1]) <= 5:
+                if _needs_parentheses(formatted_arg):
+                    return f"({formatted_arg}){power_character}{power_sh}"
+                else:
+                    return f"{formatted_arg}{power_character}{power_sh}"
+            elif fraq_variant == 1:
+                if _needs_parentheses(formatted_arg):
+                    return f"({formatted_arg})^{power_character}(1/{root_index})"
+                else:
+                    return f"{formatted_arg}^{power_character}(1/{root_index})"
         else:
-            return f"x^(1/{root_index})"  # Placeholder
+            return f"x{power_character}(1/{root_index})"
     else:
         if node.arguments and node.arguments[0] is not None:
             formatted_arg = formatter._format_node(node.arguments[0], add_spaces)
-            if _needs_parentheses(formatted_arg):
-                return f"√({formatted_arg})"
-            else:
-                return f"√{formatted_arg}"
+            sqrt_variant = random.choice([0, 1, 2, 3])
+            if sqrt_variant == 0:
+                if _needs_parentheses(formatted_arg):
+                    return f"√({formatted_arg})"
+                else:
+                    return f"√{formatted_arg}"
+            elif sqrt_variant == 1:
+                if _needs_parentheses(formatted_arg):
+                    return f"({formatted_arg}){power_character}0.5"
+                else:
+                    return f"{formatted_arg}{power_character}0.5"
+            elif sqrt_variant == 2:
+                if _needs_parentheses(formatted_arg):
+                    return f"({formatted_arg}){power_character}(1/2)"
+                else:
+                    return f"{formatted_arg}{power_character}(1/2)"
+            elif sqrt_variant == 3:
+                return f"sqrt({formatted_arg})"
         else:
-            return "√"
+            return ""
 
 
 def _format_frac(
@@ -175,9 +200,9 @@ def _format_boxed(
 ) -> str:
     if node.arguments and node.arguments[0] is not None:
         content = formatter._format_node(node.arguments[0], add_spaces)
-        return f"[{content}]"
+        return content
     else:
-        return "[]"
+        return ""
 
 
 def _format_accent(
