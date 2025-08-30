@@ -69,12 +69,17 @@ def _format_sqrt(
             formatted_arg = formatter._format_node(node.arguments[0], add_spaces)
             fraq_variant = random.choice([0, 1])
 
-            power_sh = str(1 / int(root_index))
-            if fraq_variant == 0 and len(power_sh.split(".")[1]) <= 5:
+            try:
+                int(root_index)
+                is_number = True
+            except ValueError:
+                is_number = False
+            
+            if fraq_variant == 0 and is_number and len(str(1 / int(root_index)).split(".")[1]) <= 5:
                 if _needs_parentheses(formatted_arg):
-                    return f"({formatted_arg}){power_character}{power_sh}"
+                    return f"({formatted_arg}){power_character}{str(1 / int(root_index))}"
                 else:
-                    return f"{formatted_arg}{power_character}{power_sh}"
+                    return f"{formatted_arg}{power_character}{str(1 / int(root_index))}"
             else:
                 if _needs_parentheses(formatted_arg):
                     return f"({formatted_arg})^{power_character}(1/{root_index})"
